@@ -126,19 +126,13 @@
             </plugin>
 
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.5.0</version>
-                <executions>
-                    <execution>
-                        
-                        <phase>package</phase>
-                        <goals><goal>copy</goal></goals>     
-                             
-                    </execution>
-                    
-                </executions>
-                <configuration>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals><goal>copy</goal></goals>
+                    <configuration>
                         <artifactItems>
                             <artifactItem>
                                 <groupId>com.heroku</groupId>
@@ -147,8 +141,10 @@
                                 <destFileName>webapp-runner.jar</destFileName>
                             </artifactItem>
                         </artifactItems>
-                       </configuration>
-            </plugin>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
         </plugins>
     </build>
 </project>
