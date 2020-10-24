@@ -136,10 +136,7 @@
                         <goals><goal>copy</goal></goals>     
                              
                     </execution>
-                    <execution>
-                        
-                       
-                </execution>
+                    
                 </executions>
                 <configuration>
                         <artifactItems>
