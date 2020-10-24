@@ -135,11 +135,16 @@
                         <goals>
                             <goal>exec</goal>
                         </goals>
+                        <phase>package</phase>
+                        <goals><goal>copy</goal></goals>     
+                             
                     </execution>
                     <execution>
-                        <phase>package</phase>
-                        <goals><goal>copy</goal></goals>
-                       <configuration>
+                        
+                       
+                </execution>
+                </executions>
+                <configuration>
                         <artifactItems>
                             <artifactItem>
                                 <groupId>com.heroku</groupId>
@@ -149,11 +154,6 @@
                             </artifactItem>
                         </artifactItems>
                        </configuration>
-                </execution>
-                </executions>
-                <configuration>
-                    <!--<executable>test.bat</executable>-->
-                </configuration>
             </plugin>
         </plugins>
     </build>
