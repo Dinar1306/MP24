@@ -29,7 +29,6 @@
 
         <%
             List<ReportsTable> spisokOtchetov_v2 = (List<ReportsTable>) request.getAttribute("spisokOtchetov_v2");
-            request.setCharacterEncoding ("UTF-8");
         %>
         <center>
         <div id='tab0' class="tab_content" style="display: block; width: 100%">
