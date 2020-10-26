@@ -115,6 +115,9 @@ public class MainServlet extends HttpServlet {
                     requestDispatcher.forward(request, response);
                     return;
                     }
+                response.setContentType("text/html");
+                request.setCharacterEncoding ("UTF-8");
+                response.setCharacterEncoding("UTF-8");
                 request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
                 requestDispatcher = request.getRequestDispatcher("list.jsp");
                 requestDispatcher.forward(request, response);
