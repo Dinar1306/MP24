@@ -67,7 +67,7 @@ public class ReportsTable {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        return "<a href=\"."+ File.separator + REPORTS_DIR + File.separator + fName +"\" download=\"\"><button>Cкачать</button></a>";
+        return "<a href=\"."+ File.separator + REPORTS_DIR + fName +"\" download=\"\"><button>Cкачать</button></a>";
     }
 
     String orgName;
