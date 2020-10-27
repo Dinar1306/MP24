@@ -79,7 +79,9 @@ public class MainServlet extends HttpServlet {
                 // Назв.орг. | Тип.отч | Период(месяц) |  Дата/время создания | Скачать | Удалить
                 //spisokOtchetov = makeTableFromFilelist(filesList);
                 spisokOtchetov_v2 = makeTableFromFilelist_v2(filesList);
-
+                response.setContentType("text/html");
+                request.setCharacterEncoding ("UTF-8");
+                response.setCharacterEncoding("UTF-8");
                 request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
                 requestDispatcher = request.getRequestDispatcher("list.jsp");
                 requestDispatcher.forward(request, response);
