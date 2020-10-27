@@ -3,6 +3,7 @@ package ru.rkb2ufa;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+
 import static ru.rkb2ufa.MainServlet.REPORTS_DIR;
 
 public class ReportsTable {
@@ -11,11 +12,8 @@ public class ReportsTable {
         this.orgName = FullFileName.substring(FullFileName.lastIndexOf(File.separator)+1, FullFileName.indexOf("(")-1);
         this.tipOtcheta = FullFileName.substring(FullFileName.indexOf("(")+1, FullFileName.indexOf(")"));
         this.period = FullFileName.substring(FullFileName.indexOf("[")+1, FullFileName.indexOf("]"));
-        //this.dataVremya = FullFileName.substring(FullFileName.indexOf("]")+2, FullFileName.lastIndexOf("."));
-        //this.downloadLink = "<a href=\"."+File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length())+"\" >скач.</a>";
-        //this.removeLink = "<a href=\"delete?id="+id+"\" onclick=\"window.location = 'list'\" >удал.</a>";
         this.dataVremya = FullFileName.substring(FullFileName.indexOf("]")+2, FullFileName.lastIndexOf(".")).replace("__", " ").replace('-',':');
-        this.downloadLink = "<a href=\"."+File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length())+"\" download=\"\"><button>Cкачать</button></a>";
+        this.downloadLink = makeDownloadLink(FullFileName);
         this.removeLink = "<a href=\"delete?id="+id+"\" onclick=\"window.location = 'list'\" ><button>Удалить</button></a>";
     }
 
@@ -51,17 +49,25 @@ public class ReportsTable {
         return dataVremya;
     }
 
-//     public String getDownloadLink() {
-//         return downloadLink;
-//     }
-    public String getDownloadLink() throws UnsupportedEncodingException {
-        String URLEncodedFileName = URLEncoder.encode(downloadLink, "UTF-8");
-        String ResultFileName = URLEncodedFileName.replace('+', ' ');
-        return /*downloadLink*/ResultFileName;
+    public String getDownloadLink() {
+        return downloadLink;
     }
 
     public String getRemoveLink() {
         return removeLink;
+    }
+
+    public String makeDownloadLink(String FullFileName)  {
+        String fName = File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length());
+        //"<a href=\"."+  +"\" download=\"\"><button>Cкачать</button></a>"
+        try {
+            String URLEncodedFileName = URLEncoder.encode(fName, "UTF-8");
+            String ResultFileName = URLEncodedFileName.replace('+', ' ');
+            fName = ResultFileName;
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return "<a href=\"."+ fName +"\" download=\"\"><button>Cкачать</button></a>";
     }
 
     String orgName;
