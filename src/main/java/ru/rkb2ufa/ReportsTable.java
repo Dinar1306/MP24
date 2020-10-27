@@ -1,6 +1,8 @@
 package ru.rkb2ufa;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import static ru.rkb2ufa.MainServlet.REPORTS_DIR;
 
 public class ReportsTable {
@@ -49,8 +51,13 @@ public class ReportsTable {
         return dataVremya;
     }
 
-    public String getDownloadLink() {
-        return downloadLink;
+//     public String getDownloadLink() {
+//         return downloadLink;
+//     }
+    public String getDownloadLink() throws UnsupportedEncodingException {
+        String URLEncodedFileName = URLEncoder.encode(downloadLink, "UTF-8");
+        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+        return /*downloadLink*/ResultFileName;
     }
 
     public String getRemoveLink() {
