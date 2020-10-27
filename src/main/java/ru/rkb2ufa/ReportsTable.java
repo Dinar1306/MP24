@@ -10,8 +10,10 @@ public class ReportsTable {
         this.tipOtcheta = FullFileName.substring(FullFileName.indexOf("(")+1, FullFileName.indexOf(")"));
         this.period = FullFileName.substring(FullFileName.indexOf("[")+1, FullFileName.indexOf("]"));
         this.dataVremya = FullFileName.substring(FullFileName.indexOf("]")+2, FullFileName.lastIndexOf("."));
-        this.downloadLink = "<a href=\"."+File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length())+"\" >скач.</a>";
-        this.removeLink = "<a href=\"delete?id="+id+"\" onclick=\"window.location = 'list'\" >удал.</a>";
+        //this.downloadLink = "<a href=\"."+File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length())+"\" >скач.</a>";
+        //this.removeLink = "<a href=\"delete?id="+id+"\" onclick=\"window.location = 'list'\" >удал.</a>";
+        this.downloadLink = "<a href=\"."+File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length())+"\" download=\"\"><button>Cкачать</button></a>";
+        this.removeLink = "<a href=\"delete?id="+id+"\" onclick=\"window.location = 'list'\" ><button>Удалить</button></a>";
     }
 
     public void setOrgName(String orgName) { this.orgName = orgName; }
