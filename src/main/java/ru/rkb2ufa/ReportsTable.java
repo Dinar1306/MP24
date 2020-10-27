@@ -58,7 +58,7 @@ public class ReportsTable {
     }
 
     public String makeDownloadLink(String FullFileName)  {
-        String fName = File.separator + FullFileName.substring(FullFileName.indexOf(REPORTS_DIR), FullFileName.length());
+        String fName = FullFileName.substring(FullFileName.lastIndexOf(File.separator), FullFileName.length());
         //"<a href=\"."+  +"\" download=\"\"><button>Cкачать</button></a>"
         try {
             String URLEncodedFileName = URLEncoder.encode(fName, "UTF-8");
@@ -67,7 +67,7 @@ public class ReportsTable {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        return "<a href=\"."+ fName +"\" download=\"\"><button>Cкачать</button></a>";
+        return "<a href=\"."+ File.separator + REPORTS_DIR + File.separator + fName +"\" download=\"\"><button>Cкачать</button></a>";
     }
 
     String orgName;
