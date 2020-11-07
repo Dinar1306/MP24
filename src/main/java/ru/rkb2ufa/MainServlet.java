@@ -860,7 +860,7 @@ public class MainServlet extends HttpServlet {
         // foreach для предрейса, потом для послерейса
         for (ArrayList<String> stroka : spisokVesPred) { //пробегаемся по строкам
             int[] calendDates = new int[vsegoDat]; //готовим таблицу дат осмотров для каждой фамилии
-            String fio = stroka.get(5); // получаем ФИО из 5й ячейки строки
+            String fio = stroka.get(6); // получаем ФИО из 6й ячейки строки -> ранее было "получаем ФИО из 5й ячейки строки"
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
             int dataPosition = getDataPosition(alldates, data);
             int counter = 1; // значение предрейса = 1, т.к. ФИО взята из списка предрейса в эту дату
@@ -885,7 +885,7 @@ public class MainServlet extends HttpServlet {
         // повторяем foreach и для послерейса
         for (ArrayList<String> stroka : spisokVesPosl) { //пробегаемся по строкам
             int[] calendDates = new int[vsegoDat]; //готовим таблицу дат осмотров для каждой фамилии
-            String fio = stroka.get(5); // получаем ФИО из 5й ячейки строки
+            String fio = stroka.get(6); // получаем ФИО из 6й ячейки строки -> ранее было "получаем ФИО из 5й ячейки строки"
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
             int dataPosition = getDataPosition(alldates, data);
             int counter = 1; // значение предрейса = 1, т.к. ФИО взята из списка предрейса в эту дату
