@@ -735,7 +735,7 @@ public class MainServlet extends HttpServlet {
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
 
             //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
-            switch (stroka.get(15)){
+            switch (stroka.get(16)){ // было 15
                 case "Допущен":
                     //нашлелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
