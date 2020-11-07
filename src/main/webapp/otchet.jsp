@@ -4,6 +4,7 @@
 <%@ page isELIgnored = "false" %>
 <%@ page import="java.util.*" %>
 <%@ page import="java.io.*" %>
+<%@ page import="java.net.URLEncoder" %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
     "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -26,14 +27,31 @@
                String link = dir+name;
                String link2 = dir+name2;
 
-               out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"./"+link+"\" >СКАЧАТЬ</a>");
+               String fName0 = "";
+               try {
+                  String URLEncodedFileName = URLEncoder.encode(name, "UTF-8");
+                  String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                  fName0 = ResultFileName;
+                 } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                   }         
+            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName.substring(3, fName0.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+       
         %>
 
         <br><br>
         <p align="center">Таблица №2. Детализация медосмотров (по фамилиям).</p>
 
         <%
-            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"./"+link2+"\" >СКАЧАТЬ</a>");
+            String fName = "";
+            try {
+                  String URLEncodedFileName = URLEncoder.encode(name2, "UTF-8");
+                  String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                  fName = ResultFileName;
+                 } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                   }         
+            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName.substring(3, fName.length()) +"\" download=\"\">СКАЧАТЬ</a>");
         %>
 
         <br><br><br><br>
