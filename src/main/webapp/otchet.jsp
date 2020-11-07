@@ -35,7 +35,7 @@
                  } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                    }         
-            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName.substring(3, fName0.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName0.substring(3, fName0.length()) +"\" download=\"\">СКАЧАТЬ</a>");
        
         %>
 
