@@ -156,8 +156,10 @@ public class MainServlet extends HttpServlet {
             throws ServletException, IOException {
 
         //инициализируем потоки
-        String table1FileName = "";                 // название файла Word с отчетной таблицей 1 (для скачивания)
-        String table2FileName = "";                 // название файла Word с отчетной таблицей 2 (для скачивания)
+        String table1FileName = "";                 // название файла Word с отчетной таблицей 1 по датам (для скачивания)
+        String table2FileName = "";                 // название файла Word с отчетной таблицей 2 по водителям (для скачивания)
+        String table3FileName = "";                 // название файла Word с отчетной таблицей 3 по медсестрам (для скачивания)
+        String table4FileName = "";                 // название файла Word с отчетной таблицей 4 по точкам (для скачивания)
         //InputStream inputStream;                  // поток чтения для загружаемого файла
         XSSFWorkbook workBookXLSX;                  // объект книги эксель xlsx
         HSSFWorkbook myExcelBookXLS = null;         // объект книги эксель xls
@@ -186,6 +188,8 @@ public class MainServlet extends HttpServlet {
         //итоговые данные отсортированы по фамилиям и дате
         TreeMap<String, int[]> medOsmotryByFIOXLS;
         TreeMap<String, int[]> medOsmotryByFIO;
+        TreeMap<String, int[]> medRabotnikByFIO;
+        TreeMap<String, int[]> medOsmByHost;
         // здесь key   это ФИО водителя - String
         // здесь value это таблица с суммарным значением предрейса и послерейса в каждой ячейке,
         // причем длина массива равна длине массива дат dates
@@ -216,9 +220,14 @@ public class MainServlet extends HttpServlet {
             list = getListFromSheet(workBookXLSX, 0); //получаем лист предрейса
             listPosleReis = getListFromSheet(workBookXLSX, 1); //получаем лист послерейса
             ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
-            organization = getOrganizationName_v2(pervayaStroka); //достаем из первой строки (заголовка) название компании.
-            period = getMonth_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
-            god = getGod_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+
+            try {
+                organization = getOrganizationName_v2(pervayaStroka); //достаем из первой строки (заголовка) название компании.
+                period = getMonth_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
+                god = getGod_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             //Причесываем списки:
             // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 7 ненужных строк
@@ -366,7 +375,7 @@ public class MainServlet extends HttpServlet {
                         tempValues[3] = vsegoNotOK;
                         tempValues[4] = poslerSum;
 
-                        //заносим в итоговую мапу
+                        //заносим в итоговую мапу (Табл.1)
                         medOsmotryByDatesALL.put(takeDate, tempValues);
                     }
                 }
@@ -376,8 +385,14 @@ public class MainServlet extends HttpServlet {
             for ( Integer keys:medOsmotryByDatesALL.keySet() ) {
                 dates.add(keys);
             }
-            // (Табл.2 Детализация, по фамилиям) предрейс+послерейс
-            medOsmotryByFIO = prepareTable2(list, listPosleReis, dates);
+            // (Табл.2 Детализация, по водителям) предрейс+послерейс, нужен 6й столбец
+            medOsmotryByFIO = prepareTable2(list, listPosleReis, dates, 6);
+
+            // (Табл.3 Детализация, по медсестрам) предрейс+послерейс, нужен 18й столбец
+            medRabotnikByFIO = prepareTable2(list, listPosleReis, dates, 18);
+
+            // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
+            medOsmByHost = prepareTable2(list, listPosleReis, dates, 4);
 
             // gets absolute path of the web application
             String applicationPath = request.getServletContext().getRealPath("");
@@ -390,16 +405,26 @@ public class MainServlet extends HttpServlet {
                 uploadFolder.mkdirs();
             }
 
-            try {   //заменить на суммарый с послерейсом +
+            try {   //заменить на суммарый с послерейсом +(готово)
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table1FileName) в JSP
                 table1FileName = makeWordDocumentTable1(medOsmotryByDatesALL, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
                 table2FileName = makeWordDocumentTable2XLS(dates, medOsmotryByFIO, uploadFilePath);
 
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table3FileName)
+                table3FileName = makeWordDocumentTable2XLS(dates, medRabotnikByFIO, uploadFilePath);
+
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table4FileName)
+                table4FileName = makeWordDocumentTable2XLS(dates, medOsmByHost, uploadFilePath);
+
+
+
             } catch (XmlException e) {
                 e.printStackTrace();
                 //response.setContentType("text/html");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
 
             response.setContentType("text/html");
@@ -407,6 +432,8 @@ public class MainServlet extends HttpServlet {
             request.setCharacterEncoding("UTF-8");
             request.setAttribute("docxName", table1FileName);
             request.setAttribute("docx2Name", table2FileName);
+            request.setAttribute("docx3Name", table3FileName);
+            request.setAttribute("docx4Name", table4FileName);
             request.setAttribute("reportsDir", REPORTS_DIR);
             request.setAttribute("message", "Отчёт по выгрузке medpoint24 сформирован успешно!");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
@@ -496,6 +523,8 @@ public class MainServlet extends HttpServlet {
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
                     table2FileName = makeWordDocumentTable2XLS(dates, medOsmotryByFIOXLS, uploadFilePath);
                 } catch (XmlException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
 
@@ -653,7 +682,8 @@ public class MainServlet extends HttpServlet {
                         case /*Cell.CELL_TYPE_FORMULA*/FORMULA:
                             tempStringArray.add(Double.toString(cell.getNumericCellValue()));
                             break;
-                        default:
+                        default: // пустая ячейка
+                            tempStringArray.add("");
                             break;
                     }
                 }
@@ -735,7 +765,7 @@ public class MainServlet extends HttpServlet {
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
 
             //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
-            switch (stroka.get(15)){
+            switch (stroka.get(16)){ //было 15
                 case "Допущен":
                     //нашлелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
@@ -852,7 +882,8 @@ public class MainServlet extends HttpServlet {
 
     private TreeMap<String, int[]> prepareTable2 (List<ArrayList<String>> spisokVesPred,
                                                   List<ArrayList<String>> spisokVesPosl,
-                                                  ArrayList<Integer> alldates) {
+                                                  ArrayList<Integer> alldates,
+                                                  int stolbec) { // stolbec это столбец откуда берем данные
         //заготовка для результата
         TreeMap<String, int[]> result = new TreeMap<>();
         int vsegoDat = alldates.size();
@@ -860,7 +891,7 @@ public class MainServlet extends HttpServlet {
         // foreach для предрейса, потом для послерейса
         for (ArrayList<String> stroka : spisokVesPred) { //пробегаемся по строкам
             int[] calendDates = new int[vsegoDat]; //готовим таблицу дат осмотров для каждой фамилии
-            String fio = stroka.get(5); // получаем ФИО из 5й ячейки строки
+            String fio = stroka.get(stolbec); // получаем ФИО из 6й ячейки строки -> было "получаем ФИО из 5й ячейки строки"
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
             int dataPosition = getDataPosition(alldates, data);
             int counter = 1; // значение предрейса = 1, т.к. ФИО взята из списка предрейса в эту дату
@@ -885,7 +916,7 @@ public class MainServlet extends HttpServlet {
         // повторяем foreach и для послерейса
         for (ArrayList<String> stroka : spisokVesPosl) { //пробегаемся по строкам
             int[] calendDates = new int[vsegoDat]; //готовим таблицу дат осмотров для каждой фамилии
-            String fio = stroka.get(5); // получаем ФИО из 5й ячейки строки
+            String fio = stroka.get(stolbec); // получаем ФИО из 6й ячейки строки -> было "получаем ФИО из 5й ячейки строки"
             Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
             int dataPosition = getDataPosition(alldates, data);
             int counter = 1; // значение предрейса = 1, т.к. ФИО взята из списка предрейса в эту дату
@@ -1168,14 +1199,13 @@ public class MainServlet extends HttpServlet {
 
     private String makeWordDocumentTable2XLS(ArrayList<Integer> alldates,
                                              TreeMap<String, int[]> medOsmotryByFIOXLS,
-                                             String uploadFilePath) throws IOException, XmlException {
+                                             String uploadFilePath) throws IOException, XmlException, InterruptedException {
         String copyright = "\u00a9";
         String res = File.separator+organization+" (детализ.) ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + res));
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -1294,10 +1324,10 @@ public class MainServlet extends HttpServlet {
             document.removeBodyElement( i );
         }
 
-
         document.write(out); //сохраняем файл отчета в Word
-        out.close();
         document.close();
+        out.close();
+
         return res;
     }
 
