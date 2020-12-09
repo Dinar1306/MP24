@@ -28,7 +28,16 @@
 
 
 
-               out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"./"+link+"\" >СКАЧАТЬ</a>");
+               String fName0 = "";
+               try {
+                  String URLEncodedFileName = URLEncoder.encode(name, "UTF-8");
+                  String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                  fName0 = ResultFileName;
+                 } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                   }
+            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName0.substring(3, fName0.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+
         %>
 
         <br><br>
