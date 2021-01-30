@@ -230,8 +230,8 @@ public class MainServlet extends HttpServlet {
             }
 
             //Причесываем списки:
-            // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 7 ненужных строк
-            list = list.subList(2, list.size()-7);
+            // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 5 и 7 ненужных строк из предрейса и послерейса соответственно
+            list = list.subList(2, list.size()-5);
             listPosleReis = listPosleReis.subList(2, listPosleReis.size()-7);
 
             //производим подсчёт по предрейсовым
@@ -410,13 +410,13 @@ public class MainServlet extends HttpServlet {
                 table1FileName = makeWordDocumentTable1(medOsmotryByDatesALL, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
-                table2FileName = makeWordDocumentTable2XLS(dates, medOsmotryByFIO, uploadFilePath);
+                table2FileName = makeWordDocumentTable2XLS("водит.", dates, medOsmotryByFIO, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table3FileName)
-                table3FileName = makeWordDocumentTable2XLS(dates, medRabotnikByFIO, uploadFilePath);
+                table3FileName = makeWordDocumentTable2XLS("медраб.", dates, medRabotnikByFIO, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table4FileName)
-                table4FileName = makeWordDocumentTable2XLS(dates, medOsmByHost, uploadFilePath);
+                table4FileName = makeWordDocumentTable2XLS("точки осм.", dates, medOsmByHost, uploadFilePath);
 
 
 
@@ -521,7 +521,7 @@ public class MainServlet extends HttpServlet {
                     table1FileName = makeWordDocumentTable1XLS(medOsmotryByDatesXLS, uploadFilePath);
 
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
-                    table2FileName = makeWordDocumentTable2XLS(dates, medOsmotryByFIOXLS, uploadFilePath);
+                    table2FileName = makeWordDocumentTable2XLS("водит.", dates, medOsmotryByFIOXLS, uploadFilePath);
                 } catch (XmlException e) {
                     e.printStackTrace();
                 } catch (InterruptedException e) {
@@ -1105,7 +1105,7 @@ public class MainServlet extends HttpServlet {
         run.setFontSize(14);
         run.setText("Отчет по "+organization);                  run.addCarriageReturn();
         run.setText("за фактически проведенные предрейсовые и");run.addCarriageReturn();
-        run.setText("послерейсовые медицинские осмотры");       run.addCarriageReturn();
+        run.setText("послерейсовые медицинские осмотры автоматизированным способом");       run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" месяц "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
         run.addCarriageReturn(); //возможно убрать пустую строку
 
@@ -1197,11 +1197,12 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
-    private String makeWordDocumentTable2XLS(ArrayList<Integer> alldates,
+    private String makeWordDocumentTable2XLS(String vidOtcheta,
+                                             ArrayList<Integer> alldates,
                                              TreeMap<String, int[]> medOsmotryByFIOXLS,
                                              String uploadFilePath) throws IOException, XmlException, InterruptedException {
         String copyright = "\u00a9";
-        String res = File.separator+organization+" (детализ.) ["+period.toLowerCase()+"] "
+        String res = File.separator+organization+" ("+vidOtcheta+") ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
 
         //For writing the Document in file system
@@ -1252,7 +1253,7 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(14);
         run.setText("Детализация прохождения предрейсовых/послерейсовых"); run.addCarriageReturn();
-        run.setText("медицинских осмотров водителей"); run.addCarriageReturn();
+        run.setText("медицинских осмотров водителей автоматизированным способом"); run.addCarriageReturn();
         run.setText(organization);run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" месяц "+god+" года");run.addCarriageReturn();
         //run.addCarriageReturn(); //возможно убрать пустую строку
