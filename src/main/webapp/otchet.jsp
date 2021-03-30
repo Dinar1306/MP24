@@ -75,7 +75,7 @@
               %>
 
         <br><br>
-                    <p align="center">Таблица №4. Детализация медосмотров (по точкам медосмотров).</p>
+                    <p align="center">Таблица №4. Детализация медосмотров (по точкам выпуска).</p>
 
                     <%
                       String name4 = (String)request.getAttribute("docx4Name");
@@ -91,7 +91,40 @@
         			  out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName4.substring(3, fName4.length()) +"\" download=\"\">СКАЧАТЬ</a>");
                     %>
 
+        <br><br>
+                            <p align="center">Таблица №5. Реестр медосмотров (предр., послер. и линейный).</p>
 
+                            <%
+                              String name5 = (String)request.getAttribute("docx5Name");
+                              String fName5 = "";
+                              try {
+                                    String URLEncodedFileName = URLEncoder.encode(name5, "UTF-8");
+                                    String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                                    fName5 = ResultFileName;
+                                   } catch (UnsupportedEncodingException e) {
+                                            e.printStackTrace();
+                                   }
+
+                			  out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName5.substring(3, fName5.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+
+                            %>
+        <br><br>
+                                    <p align="center">Таблица №6.  Причины недопусков (статистика).</p>
+
+                                    <%
+                                      String name6 = (String)request.getAttribute("docx6Name");
+                                      String fName6 = "";
+                                      try {
+                                            String URLEncodedFileName = URLEncoder.encode(name6, "UTF-8");
+                                            String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                                            fName6 = ResultFileName;
+                                           } catch (UnsupportedEncodingException e) {
+                                                    e.printStackTrace();
+                                           }
+
+                        			  out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName6.substring(3, fName6.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+
+                                    %>
         <br><br><br><br>
         <p align="center">==============================================</p>
         <a class="w3-button w3-ripple w3-teal" href="./" >Ещё разок</a>

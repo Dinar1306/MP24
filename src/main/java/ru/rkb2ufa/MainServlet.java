@@ -49,7 +49,37 @@ public class MainServlet extends HttpServlet {
     private int errorStringNumber;
     private String debug = "";
     private String message = "";
+    private int chisloMO = 0; //общее число медосмотров из трех списков(предр, послер и линейный)
+    private int chisloPredr = 0; //общее число предр.медосмотров
+    private int chisloPosler = 0; //общее число послер.медосмотров
+    private int chisloLine = 0; //общее число линейн.медосмотров
 
+    private class FactTable {
+        int obscheeChisloMO;
+        int kolichPredreisMO;
+        int kolichDopuskov;
+        int kolichNedopuskov;
+        int kolichPoslerMO;
+        float procentNedopuska;
+
+        public void setProcentNedopuska() {
+            this.procentNedopuska = this.kolichNedopuskov / (float)this.obscheeChisloMO;
+        }
+
+        //конструктор
+        public FactTable(int obscheeChisloMO, int kolichPredreisMO, int kolichDopuskov, int kolichNedopuskov, int kolichPoslerMO) {
+            this.obscheeChisloMO = obscheeChisloMO;
+            this.kolichPredreisMO = kolichPredreisMO;
+            this.kolichDopuskov = kolichDopuskov;
+            this.kolichNedopuskov = kolichNedopuskov;
+            this.kolichPoslerMO = kolichPoslerMO;
+            //this.procentNedopuska = kolichNedopuskov/(float)obscheeChisloMO;
+        }
+
+        //конструктор по умолчанию
+        public FactTable() {
+        }
+    }
 
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -155,29 +185,39 @@ public class MainServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        //инициализируем потоки
+        //инициализируем переменные и объекты
         String table1FileName = "";                 // название файла Word с отчетной таблицей 1 по датам (для скачивания)
         String table2FileName = "";                 // название файла Word с отчетной таблицей 2 по водителям (для скачивания)
         String table3FileName = "";                 // название файла Word с отчетной таблицей 3 по медсестрам (для скачивания)
         String table4FileName = "";                 // название файла Word с отчетной таблицей 4 по точкам (для скачивания)
+        String table5FileName = "";                 // название файла Word с отчетной таблицей 5 реестр осмотров (для скачивания)
+        String table6FileName = "";                 // название файла Word с отчетной таблицей 6 причины недопусков (для скачивания)
         //InputStream inputStream;                  // поток чтения для загружаемого файла
         XSSFWorkbook workBookXLSX;                  // объект книги эксель xlsx
         HSSFWorkbook myExcelBookXLS = null;         // объект книги эксель xls
         //String[] stroka = new String[20];         // строка таблицы с листа
         //String[] customs = null;
-        List<ArrayList<String>> list = new ArrayList<>();     // массив строк листа (кажда строка - массив строк) для medpont24
-        List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (кажда строка - массив строк) для medpont24
-        List<ArrayList<String>> listP = new ArrayList<>();    // массив строк листа (кажда строка - массив строк) для поликлиники
+        List<ArrayList<String>> list = new ArrayList<>();     // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> listLine = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> listPosleAndLine = new ArrayList<>(); // для объединения послерейса и линейного
+        List<ArrayList<String>> listP = new ArrayList<>();    // массив строк листа (каждая строка - массив строк) для поликлиники
         TreeMap<Integer, Integer[]> medOsmotryByDatesPredReis = new TreeMap<Integer, Integer[]>(); //итоговые данные отсортированы по дате
         //т.е. здесть Integer Key - дата мед.осм.
         //Integer[] Value - таблица допущено / не допущено (в эту дату)
         TreeMap<Integer, Integer[]> medOsmotryByDatesPosleReis;
+        TreeMap<Integer, FactTable> medOsmotryByDatesFacticheskie = new TreeMap<Integer, FactTable>();; // Таблица 1 для ворда
+        //т.е. здесть Integer Key - дата мед.осм.
+        //FactTable Value - таблица: общ.число.МО|кол.предр.МО|допусков|недопусков|кол.послер.МО|%невыпуска (в эту дату)
 
         TreeMap<Integer, int[]> medOsmotryByDatesALL = new TreeMap<Integer, int[]>();
         //т.е. здесть Integer Key - дата мед.осм.
-        //int[] Value - таблица: общ.кол|предр|допущ|недоущ|послер| (в эту дату)
+        //int[] Value - таблица: общ.кол|предр|допущ|недоущ|послер| (в эту дату) --> добавить столбец %невыпуска
 
-        //итоговые данные отсортированы по дате
+        // %невыпуска (для добавления последнего столбца при формировании документа ворд
+        TreeMap<Integer, Float> medOsmotryByDatesAllProcent = new TreeMap<Integer, Float>();
+
+        //итоговые данные отсортированы по дате (Поликлиника)
         TreeMap<Integer, Integer[]> medOsmotryByDatesXLS;
         //т.е. здесть Integer Key - дата мед.осм.
         //Integer[] Value - таблица предрейс / послерейс (в эту дату)
@@ -190,6 +230,7 @@ public class MainServlet extends HttpServlet {
         TreeMap<String, int[]> medOsmotryByFIO;
         TreeMap<String, int[]> medRabotnikByFIO;
         TreeMap<String, int[]> medOsmByHost;
+        TreeMap<String, int[]> medOsmByNepoduski;
         // здесь key   это ФИО водителя - String
         // здесь value это таблица с суммарным значением предрейса и послерейса в каждой ячейке,
         // причем длина массива равна длине массива дат dates
@@ -201,24 +242,25 @@ public class MainServlet extends HttpServlet {
         Part part = request.getPart("file");
         long size = part.getSize(); //файл медпойнта
 
-        Part part_p = request.getPart("file_p");
-        long size_p = part_p.getSize(); // файл поликлиники
+        //Part part_p = request.getPart("file_p");
+        //long size_p = part_p.getSize(); // файл поликлиники
 
-        //обрабатываем файлы в зависимости от того, что загружено:
+        //проверям загруженли файл меджурнала:
         //ничего
-        if (size == 0 & size_p ==0){
-            request.setAttribute("message", "Не загружен ни один отчёт :(");
+        if (size == 0){
+            request.setAttribute("message", "Не загружен файл меджурнала :(");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
             requestDispatcher.forward(request, response);
             return;
         }
-        // только отчет medpoint24 загружен
-        if (!(size==0) & size_p ==0){
+        // меджурнал medpoint24 загружен
+        else {
             //получаем объект книги XLSX из формы
             workBookXLSX = XLSXFromPart(part);
             //разбираем первый лист файла medpoint24 на объектную модель
             list = getListFromSheet(workBookXLSX, 0); //получаем лист предрейса
             listPosleReis = getListFromSheet(workBookXLSX, 1); //получаем лист послерейса
+            listLine = getListFromSheet(workBookXLSX, 5); //получаем лист линейного
             ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
 
             try {
@@ -233,166 +275,64 @@ public class MainServlet extends HttpServlet {
             // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 5 и 7 ненужных строк из предрейса и послерейса соответственно
             list = list.subList(2, list.size()-5);
             listPosleReis = listPosleReis.subList(2, listPosleReis.size()-7);
+            //причесываем линейный
+            listLine = listLine.subList(2, listLine.size()-5);
+
+            //считаем общее число медосмотров
+            if (!list.isEmpty()) {
+                chisloPredr = list.size();
+                chisloMO = chisloMO + list.size();
+            }
+            if (!listPosleReis.isEmpty()){
+                chisloPosler = listPosleReis.size();
+                chisloMO = chisloMO + listPosleReis.size();
+            }
+            if (!listLine.isEmpty()){
+                chisloLine = listLine.size();
+                chisloMO = chisloMO + listLine.size();
+            }
+
+            ////соединяем послерейс и линейные МО
+            //Объединение двух списков в третий:
+            //result.addAll(list1);
+            //result.addAll(list2);
+            listPosleAndLine.addAll(listPosleReis);
+            listPosleAndLine.addAll(listLine);
 
             //производим подсчёт по предрейсовым
             medOsmotryByDatesPredReis = prepare(list);
 
-            //производим подсчёт по послерейсовым
-            medOsmotryByDatesPosleReis = prepare(listPosleReis);
+            //производим подсчёт по послерейсовым (старый вариант)
+            //medOsmotryByDatesPosleReis = prepare(listPosleReis); //старый вариант
+            //производим подсчёт по объединенному послерейсу и линейному (новый вариант)
+            medOsmotryByDatesPosleReis = prepare(listPosleAndLine); //новый вариант
 
-            //производим подсчёт по предрейсовым и послерейсовым за раз
-            // (Табл.2 Детализация, по фамилиям)
-            ///medOsmotryByFIO = prepareTable2(listP, dates);
+            //производим подсчёт по линейным
+            //medOsmotryByDatesLine = prepare(listLine);
 
 
 
-            // TODO: 09.09.2020 Суммарная таблица предрейса и послерейса для формирования Word отчета
-            Integer pred = medOsmotryByDatesPredReis.size();  //сколько дат предрейса
-            Integer posl = medOsmotryByDatesPosleReis.size(); //сколько дат послерейса
-            int hvost; //сколько дней разница
-            //организуем суммирование таблиц по списку с меньшим количеством дат
-            if (pred>=posl) { //подсчет по послерейсу
-                hvost=pred-posl;
-                for (Map.Entry<Integer, Integer[]> entry: medOsmotryByDatesPosleReis.entrySet()
-                     ) {
-                    Integer key = entry.getKey(); //получаем дату
-                    Integer[] tempPosler = entry.getValue();                //значения послерейса в эту дату
-                    Integer[] tempPredr = new Integer[]{0,0};
-                    int predrVsego = 0;
-                    int predrProshlo = 0;
-                    int vsegoNeProshlo = 0;
-                    if (medOsmotryByDatesPredReis.containsKey(key)){     //если такая дата есть в другом списке, т.е. в предрейсе
-                        tempPredr = medOsmotryByDatesPredReis.get(key); //значения предрейса в эту дату
-                        predrVsego = tempPredr[0]+tempPredr[1];         //всего предрейсовых в эту дату
-                        predrProshlo = tempPredr[0];                    //допушено в эту дату
-                        vsegoNeProshlo = tempPredr[1]+tempPosler[1];   //не прошло предр. и послер. в эту дату
-                    } else {
-                        //нули уже установлены
-                    }
+            // (Табл.1 Фактические медосмотры)
+            medOsmotryByDatesFacticheskie = prepareTable1(medOsmotryByDatesPredReis, medOsmotryByDatesPosleReis);
 
-                    int poslerVsego = tempPosler[0]+tempPosler[1];     //всего послерейсовых в эту дату
-                    int vsegoOsmotrov = predrVsego+poslerVsego;        // всего осмотров в эту дату
-
-                    int[] currentValue = new int[5]; //готовим таблицу с нулями
-                    //заполняем её: общ.кол|предр|допущ|недоущ|послер| (в эту дату)
-                    currentValue[0] = vsegoOsmotrov;
-                    currentValue[1] = predrVsego;
-                    currentValue[2] = predrProshlo;
-                    currentValue[3] = vsegoNeProshlo;
-                    currentValue[4] = poslerVsego;
-
-                    //заносим в итоговую мапу
-                    medOsmotryByDatesALL.put(key, currentValue);
-                }
-                //если есть хвост то дополняем итоговую мапу
-                if(!(hvost==0)){
-                    //сначала достаем отсутствующие даты (которые из списка с большим количеством дат)
-                    Set<Integer> notTakenDates = new HashSet<>();
-                    Set<Integer> medPosleReis = new HashSet<>();
-                    notTakenDates.addAll(medOsmotryByDatesPredReis.keySet());
-                    medPosleReis.addAll(medOsmotryByDatesPosleReis.keySet());
-                    notTakenDates.removeAll(medPosleReis); //теперь здесь не обработанные даты предрейса
-
-                    for (Integer takeDate:notTakenDates) {
-                        Integer[] predr = medOsmotryByDatesPredReis.get(takeDate); //значения предрейса в эту дату
-                        //Integer[] posler = medOsmotryByDatesPosleReis.get(takeDate); //значения послерейса в эту дату
-                        int predrSum = predr[0]+predr[1];         //всего предрейсовых в эту дату
-                        int predrOK = predr[0];                    //допушено в эту дату
-                        int vsegoNotOK = predr[1]/*+posler[1]*/;               //не прошло предр. в эту дату
-                        int poslerSum =0 /*predr[1]+posler[1]*/;  //всего послерейсовых в эту дату = 0 т.к. это данные послерейса, а послерейс в эту дату не проводился
-                        int vsegoSum = predrSum+poslerSum;        // всего осмотров в эту дату
-
-                        int[] tempValues = new int[5]; //готовим таблицу с нулями
-                        //заполняем её: общ.кол|предр|допущ|недоущ|послер| (в эту дату)
-                        tempValues[0] = vsegoSum;
-                        tempValues[1] = predrSum;
-                        tempValues[2] = predrOK;
-                        tempValues[3] = vsegoNotOK;
-                        tempValues[4] = poslerSum;
-
-                        //заносим в итоговую мапу
-                        medOsmotryByDatesALL.put(takeDate, tempValues);
-                    }
-                }
-
-            }else{ //подсчет по предрейсу, т.к. у него кол-во дат меньше
-                hvost=posl-pred;
-                for (Map.Entry<Integer, Integer[]> entry: medOsmotryByDatesPredReis.entrySet()
-                        ) {
-                    Integer key = entry.getKey(); //получаем дату
-                    Integer[] tempPred = entry.getValue();                //значения предрейса в эту дату
-                    Integer[] tempPosle = new Integer[]{0,0};           //значения послерейса в эту дату
-                    tempPosle[0] = 0; tempPosle[1] = 0;
-                    int predrVsego = tempPred[0]+tempPred[1];         //всего предрейсовых в эту дату
-                    int poslerVsego = 0;                                 //всего послерейсовых в эту дату
-                    int predrProshlo = tempPred[0];                    //допушено в эту дату
-                    int vsegoNeProshlo =0;                                //не прошло предр. и послер. в эту дату
-                    if (medOsmotryByDatesPosleReis.containsKey(key)){     //если такая дата есть в другом списке
-                        tempPosle = medOsmotryByDatesPosleReis.get(key); //значения предрейса в эту дату
-                        poslerVsego = tempPosle[0]+tempPosle[1];
-                        vsegoNeProshlo = tempPred[1]+tempPosle[1];    //добавляем не прошедших послерейс в эту дату
-
-                    } else {
-                        //нули уже установлены
-                    }
-                    //int poslerVsego = tempPosler[0]+tempPosler[1];     //всего послерейсовых в эту дату
-                    int vsegoOsmotrov = predrVsego+poslerVsego;        // всего осмотров в эту дату
-
-                    int[] currentValue = new int[5]; //готовим таблицу с нулями
-                    //заполняем её: общ.кол|предр|допущ|недоущ|послер| (в эту дату)
-                    currentValue[0] = vsegoOsmotrov;
-                    currentValue[1] = predrVsego;
-                    currentValue[2] = predrProshlo;
-                    currentValue[3] = vsegoNeProshlo;
-                    currentValue[4] = poslerVsego;
-
-                    //заносим в итоговую мапу
-                    medOsmotryByDatesALL.put(key, currentValue);
-                }
-                //если есть хвост то дополняем итоговую мапу
-                if(!(hvost==0)){
-                    //сначала достаем отсутствующие даты (которые из списка с большим количеством дат)
-                    Set<Integer> notTakenDates = new HashSet<>();
-                    Set<Integer> medPredReis = new HashSet<>();
-                    notTakenDates.addAll(medOsmotryByDatesPosleReis.keySet());
-                    medPredReis.addAll(medOsmotryByDatesPredReis.keySet());
-                    notTakenDates.removeAll(medPredReis); //теперь здесь не обработанные даты
-
-                    for (Integer takeDate:notTakenDates) {
-                        //Integer[] predr = medOsmotryByDatesPredReis.get(takeDate);  //значения предрейса в эту дату
-       /*тут Null*/     Integer[] posler = medOsmotryByDatesPosleReis.get(takeDate); //значения предрейса в эту дату
-       /*!!!!*/         int predrSum = /*predr[0]+predr[1]*/ 0;       //всего предрейсовых в эту дату 0, т.к. считаем по листу послерейса
-                        int predrOK = /*predr[0]*/ 0;                //допушено в эту дату
-                        int vsegoNotOK = /*predr[1]+*/posler[1];    //не прошло предр. и послер. в эту дату
-                        int poslerSum = posler[0]+posler[1];       //всего послерейсовых в эту дату т.к. это данные послерейса, а предрейс в эту дату не проводился
-                        int vsegoSum = predrSum+poslerSum;        // всего осмотров в эту дату
-
-                        int[] tempValues = new int[5]; //готовим таблицу с нулями
-                        //заполняем её: общ.кол|предр|допущ|недоущ|послер| (в эту дату)
-                        tempValues[0] = vsegoSum;
-                        tempValues[1] = predrSum;
-                        tempValues[2] = predrOK;
-                        tempValues[3] = vsegoNotOK;
-                        tempValues[4] = poslerSum;
-
-                        //заносим в итоговую мапу (Табл.1)
-                        medOsmotryByDatesALL.put(takeDate, tempValues);
-                    }
-                }
+            // считаем проценты недопусков в табл.1
+            for (Map.Entry<Integer, FactTable> entry: medOsmotryByDatesFacticheskie.entrySet()) {
+               entry.getValue().setProcentNedopuska();
             }
 
             //получаем массив дат
-            for ( Integer keys:medOsmotryByDatesALL.keySet() ) {
+            //for ( Integer keys:medOsmotryByDatesALL.keySet() ) {
+            for ( Integer keys:medOsmotryByDatesFacticheskie.keySet() ) {
                 dates.add(keys);
             }
             // (Табл.2 Детализация, по водителям) предрейс+послерейс, нужен 6й столбец
-            medOsmotryByFIO = prepareTable2(list, listPosleReis, dates, 6);
+            medOsmotryByFIO = prepareTable2(list, listPosleAndLine, dates, 6);
 
             // (Табл.3 Детализация, по медсестрам) предрейс+послерейс, нужен 18й столбец
-            medRabotnikByFIO = prepareTable2(list, listPosleReis, dates, 18);
+            medRabotnikByFIO = prepareTable2(list, listPosleAndLine, dates, 18);
 
             // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
-            medOsmByHost = prepareTable2(list, listPosleReis, dates, 4);
+            medOsmByHost = prepareTable2(list, listPosleAndLine, dates, 4);
 
             // gets absolute path of the web application
             String applicationPath = request.getServletContext().getRealPath("");
@@ -407,7 +347,8 @@ public class MainServlet extends HttpServlet {
 
             try {   //заменить на суммарый с послерейсом +(готово)
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table1FileName) в JSP
-                table1FileName = makeWordDocumentTable1(medOsmotryByDatesALL, uploadFilePath);
+                //table1FileName = makeWordDocumentTable1(medOsmotryByDatesALL, uploadFilePath, medOsmotryByDatesAllProcent);
+                table1FileName = makeWordDocumentTable1XLS(medOsmotryByDatesFacticheskie, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
                 table2FileName = makeWordDocumentTable2XLS("водит.", dates, medOsmotryByFIO, uploadFilePath);
@@ -418,7 +359,11 @@ public class MainServlet extends HttpServlet {
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table4FileName)
                 table4FileName = makeWordDocumentTable2XLS("точки осм.", dates, medOsmByHost, uploadFilePath);
 
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table5FileName)
+                table5FileName = makeWordDocumentReestr(list, listPosleReis, listLine, uploadFilePath);
 
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
+                table6FileName = makeWordDocumentStatNedopuskov(list, listPosleAndLine, uploadFilePath);
 
             } catch (XmlException e) {
                 e.printStackTrace();
@@ -434,189 +379,15 @@ public class MainServlet extends HttpServlet {
             request.setAttribute("docx2Name", table2FileName);
             request.setAttribute("docx3Name", table3FileName);
             request.setAttribute("docx4Name", table4FileName);
+            request.setAttribute("docx5Name", table5FileName);
+            request.setAttribute("docx6Name", table6FileName);
             request.setAttribute("reportsDir", REPORTS_DIR);
-            request.setAttribute("message", "Отчёт по выгрузке medpoint24 сформирован успешно!");
+            request.setAttribute("message", "Отчёты по меджурналу Medpoint24 сформированы успешно!");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
             requestDispatcher.forward(request, response);
             return;
         }
-        // только отчет поликлиники загружен
-        if (size==0 & !(size_p == 0)){
-            //получаем объект книги XLS из формы
-            myExcelBookXLS = XLSFromPart(part_p);
-            //разбираем лист "Реестр" файла поликлиники на объектную модель
-            try {
-                listP = getListFromSheetXLS(myExcelBookXLS);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (NullPointerException e) {
-                e.printStackTrace();
-                debug = e.toString();
-                message = "Ошибка при формировании отчета - проверьте структуру таблицы: проблемная строка №"+String.valueOf(errorStringNumber);
-                failed = true;
 
-//                request.setAttribute("message", "Ошибка при формировании отчета - проверьте структуру таблицы: проблемная строка №"+String.valueOf(errorStringNumber));
-//                request.setAttribute("debug", debug);
-//                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
-//                requestDispatcher.forward(request, response);
-//                errorStringNumber = 0;
-//                return;
-
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-                debug = e.toString();
-                message = "Ошибка при формировании отчета - проверьте корректность даты в строке №"+String.valueOf(errorStringNumber);
-                failed = true;
-//                String debug = e.toString();
-//                request.setAttribute("message", "Ошибка при формировании отчета - проверьте корректность даты в строке №"+String.valueOf(errorStringNumber));
-//                request.setAttribute("debug", debug);
-//                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
-//                requestDispatcher.forward(request, response);
-//                errorStringNumber = 0;
-//                return;
-            }
-
-            if (failed) { //если есть проблема - выводим сообщение об ошибке и сбрасываем маркер проблемы
-                request.setAttribute("message", message);
-                request.setAttribute("debug", debug);
-                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
-                requestDispatcher.forward(request, response);
-                failed = false;
-                return;
-            } else { // если проблем нет - выводим работу программы
-                organization = getOrganizationNameFromXLS(listP.get(0)); //достаем строку, содержащую название компании.
-                period = getMonthXLS(listP.get(1)); //достаем из заголовка отчетный месяц.
-                god = getGodXLS(listP.get(1)); //достаем из заголовка отчетный год.
-
-                //Причесываем список:
-                // убираем заголовок таблицы, убираем шапку таблицы
-                listP = listP.subList(3, listP.size());
-
-                //производим подсчёт по предрейсовым и послерейсовым за раз
-                // (Табл.1 Фактическая, по датам)
-                medOsmotryByDatesXLS = prepareXLS(listP);
-
-                //получаем массив дат
-                for ( Integer keys:medOsmotryByDatesXLS.keySet() ) {
-                      dates.add(keys);
-                }
-
-                //производим подсчёт по предрейсовым и послерейсовым за раз
-                // (Табл.2 Детализация, по фамилиям)
-                medOsmotryByFIOXLS = prepareTable2XLS(listP, dates);
-
-                // gets absolute path of the web application
-                String applicationPath = request.getServletContext().getRealPath("");
-                // constructs path of the directory to save uploaded file
-                String uploadFilePath = applicationPath + File.separator + REPORTS_DIR;
-
-                //Создаем папку для формируемых отчетов Word если ее нет
-                File uploadFolder = new File(uploadFilePath);
-                if (!uploadFolder.exists()) {  //если папки не существует, то создаем
-                    uploadFolder.mkdirs();
-                }
-
-                try {
-                    //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table1FileName) в JSP
-                    table1FileName = makeWordDocumentTable1XLS(medOsmotryByDatesXLS, uploadFilePath);
-
-                    //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
-                    table2FileName = makeWordDocumentTable2XLS("водит.", dates, medOsmotryByFIOXLS, uploadFilePath);
-                } catch (XmlException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                response.setContentType("text/html");
-                response.setCharacterEncoding("UTF-8");
-                request.setCharacterEncoding("UTF-8");
-
-                //System.out.println(organization);
-
-                request.setAttribute("message", "Отчёт по реестру сформирован успешно!");
-                request.setAttribute("title", "Результат");
-                request.setAttribute("size", size);
-                request.setAttribute("list", list);
-                request.setAttribute("medOsmotryByDates", medOsmotryByDatesXLS); //заменить на суммарый с послерейсом
-                request.setAttribute("docxName", table1FileName);
-                request.setAttribute("docx2Name", table2FileName);
-                request.setAttribute("reportsDir", REPORTS_DIR);
-                RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
-                requestDispatcher.forward(request, response);
-                return;
-            }
-
-
-        }
-        //Оба отчета загружено
-        else {
-        /*
-        //получаем объект книги XLSX из формы
-        workBookXLSX = XLSXFromPart(part);
-        //получаем объект книги XLS из формы
-        myExcelBookXLS = XLSFromPart(part_p);
-
-
-        //разбираем первый лист файла medpoint24 на объектную модель
-        list = getListFromSheet(workBookXLSX, 0);
-
-        //разбираем лист "Лист1" файла поликлиники на объектную модель
-        listP = getListFromSheetXLS(myExcelBookXLS);
-
-        ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
-        organization = getOrganizationName(pervayaStroka); //достаем из первой строки (заголовка) название компании.
-        period = getMonth(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
-        god = getGod(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
-
-        //Причесываем список:
-        // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 7 ненужных строк
-        list = list.subList(2, list.size()-7);
-
-        //производим подсчёт по предрейсовым
-        medOsmotryByDatesPredReis = prepare(list);
-
-        // TODO: 09.09.2020
-        //производим подсчёт по послерейсовым
-        //medOsmotryByDatesPosleReis = prepare(list);
-
-        // TODO: 09.09.2020 Суммарная таблица предрейса и послерейса для формирования Word отчета
-
-        // gets absolute path of the web application
-        String applicationPath = request.getServletContext().getRealPath("");
-        // constructs path of the directory to save uploaded file
-        String uploadFilePath = applicationPath + File.separator + REPORTS_DIR;
-
-        //Создаем папку для формируемых отчетов Word если ее нет
-        File uploadFolder = new File(uploadFilePath);
-        if (!uploadFolder.exists()) {  //если папки не существует, то создаем
-            uploadFolder.mkdirs();
-        }
-
-        try {   //// TODO: 26.09.2020  заменить на суммарый: medpoint24+поликлиника
-            //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table1FileName) в JSP
-            table1FileName = makeWordDocumentTable1(medOsmotryByDatesALL, uploadFilePath);
-        } catch (XmlException e) {
-            e.printStackTrace();
-            //response.setContentType("text/html");
-        }
-
-        response.setContentType("text/html");
-        response.setCharacterEncoding("UTF-8");
-        request.setCharacterEncoding("UTF-8");
-
-        request.setAttribute("message", "Отчёт сформирован успешно!");
-        request.setAttribute("title", "Результат");
-        request.setAttribute("size", size);
-        request.setAttribute("list", list);
-        request.setAttribute("medOsmotryByDates", medOsmotryByDatesPredReis); //заменить на суммарый с послерейсом
-        request.setAttribute("docxName", table1FileName);
-        request.setAttribute("reportsDir", REPORTS_DIR);
-        RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp"); */
-        RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
-            request.setAttribute("message", "Функционал объединения двух отчетов в разработке.");
-            request.setAttribute("debug", "-");
-        requestDispatcher.forward(request, response);}
     }
 
 
@@ -690,6 +461,8 @@ public class MainServlet extends HttpServlet {
                 res.add(tempStringArray);
             }
             workBook.close();
+
+            //chisloMO = 0; //общее число медосмотров из трех списков(предр, послер и линейный)
         return res;
     }
 
@@ -880,6 +653,69 @@ public class MainServlet extends HttpServlet {
         return result;
     }
 
+    private TreeMap<Integer, FactTable> prepareTable1(TreeMap<Integer, Integer[]> pred, TreeMap<Integer, Integer[]> posl){
+        TreeMap<Integer, FactTable> res = new TreeMap<Integer, FactTable>();
+
+        //проходим по предрейсу
+        //результат пуст, поэтому сразу добавляем без проверки наличия добавляемой даты
+        for (Map.Entry<Integer, Integer[]> entry: pred.entrySet()) {
+            Integer key = entry.getKey(); //получаем дату
+            Integer[] dopuskNedopusk = entry.getValue();                //значения допуска/недопуска в эту дату
+            res.put(key,
+                    new FactTable(
+                            dopuskNedopusk[0]+dopuskNedopusk[1], //общ.число.МО
+                            dopuskNedopusk[0]+dopuskNedopusk[1], //число.предрейс
+                            dopuskNedopusk[0], //кол-во допусков
+                            dopuskNedopusk[1], //кол-во недопусков
+                            0)//ноль т.к. лист предрейса)
+            );
+        }
+
+        // проходим по послерейсу (совмещенному с линейным) и добавляем, если такой даты нет, обновляем, если такая дата есть
+        for (Map.Entry<Integer, Integer[]> entry: posl.entrySet()) {
+            FactTable temp = new FactTable(); // времянка для доставаемых значений
+            int vsegoMO = 0;
+            int predrVsego = 0;
+            int dopuskov = 0;
+            int nedopuskov = 0;
+            int poslerVsego = 0;
+
+            Integer key = entry.getKey();                //получаем дату
+            Integer[] dopuskNedopusk = entry.getValue(); //значения допуска/недопуска в эту дату
+
+            //если дата уже внесена - достаем значения, добавляем новые и перезаписываем значения новыми
+            //иначе добавляем дату и значения на эту дату
+            if(res.containsKey(key)){ //если дата имеется
+                temp = res.get(key);  // достаем значения (объект FactTable)
+                //берем значения из полученного FactTable
+                vsegoMO = temp.obscheeChisloMO;
+                predrVsego = temp.kolichPredreisMO;
+                dopuskov = temp.kolichDopuskov;
+                nedopuskov = temp.kolichNedopuskov;
+                poslerVsego = temp.kolichPoslerMO;
+                //перезаписываем значения
+                vsegoMO = vsegoMO+dopuskNedopusk[0]+dopuskNedopusk[1];
+                dopuskov = dopuskov + dopuskNedopusk[0];
+                nedopuskov = nedopuskov + dopuskNedopusk[1];
+                poslerVsego = poslerVsego + dopuskNedopusk[0]+dopuskNedopusk[1];
+                //обновляем объект FactTable
+                res.put(key, new FactTable(vsegoMO, predrVsego, dopuskov, nedopuskov, poslerVsego));
+            }
+            else { //такой даты нет в общей таблице
+                res.put(key,
+                        new FactTable(
+                                dopuskNedopusk[0]+dopuskNedopusk[1], //общ.число.МО
+                                0, ////ноль т.к. лист послерейса)
+                                dopuskNedopusk[0], //кол-во допусков
+                                dopuskNedopusk[1], //кол-во недопусков
+                                dopuskNedopusk[0]+dopuskNedopusk[1])
+                );
+
+            }
+        }
+        return res;
+    }
+
     private TreeMap<String, int[]> prepareTable2 (List<ArrayList<String>> spisokVesPred,
                                                   List<ArrayList<String>> spisokVesPosl,
                                                   ArrayList<Integer> alldates,
@@ -952,7 +788,7 @@ public class MainServlet extends HttpServlet {
     }
 
     // TODO: +++ 09.09.2020 сделать возврат названия файла (чтобы передать в otchet.jsp для формирования ссылки для скачивания)
-    private String makeWordDocumentTable1(TreeMap<Integer, int[]> preparedList, String uploadFilePath) throws IOException, XmlException {
+    private String makeWordDocumentTable1(TreeMap<Integer, int[]> preparedList, String uploadFilePath, TreeMap<Integer, Float> preparedProcent) throws IOException, XmlException {
         String copyright = "\u00a9";
         String res = File.separator+organization+" (фактич.) ["+period.toLowerCase()+"] "
                      + makeFileNameByDateAndTimeCreated()+".docx";
@@ -986,7 +822,7 @@ public class MainServlet extends HttpServlet {
         run.setText("Отчет по "+organization);                  run.addCarriageReturn();
         run.setText("за фактически проведенные предрейсовые и");run.addCarriageReturn();
         run.setText("послерейсовые медицинские осмотры");       run.addCarriageReturn();
-        run.setText("за "+period.toLowerCase()+" месяц "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
+        run.setText("за "+period.toLowerCase()+" "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
         run.addCarriageReturn();
 
         //create table
@@ -1008,14 +844,16 @@ public class MainServlet extends HttpServlet {
         tableRowOne.getCell(3).setParagraph(fillParagraph(document, "Количество предрейсовых мед.осмотров"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество водителей, допущенных к работе"));
+        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Допуск\""));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество водителей, не допущенных к работе"));
+        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Недопуск\""));
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(6).setParagraph(fillParagraph(document, "Количество послерейсовых мед.осмотров"));
 
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(7).setParagraph(fillParagraph(document, "% невыпуска"));
 
         //table.getRow(0).getCell(0).addParagraph();
 
@@ -1035,6 +873,7 @@ public class MainServlet extends HttpServlet {
             countDopusk = countDopusk + value[2];
             countNoDopusk = countNoDopusk + value[3];
             countPosler = countPosler + value[4];
+            float procent = preparedProcent.get(key);
 
             //create next rows
             XWPFTableRow tableRowNext = table.createRow();
@@ -1045,6 +884,7 @@ public class MainServlet extends HttpServlet {
             tableRowNext.getCell(4).setParagraph(fillParagraph(document, Integer.toString(value[2]))); //допущ.
             tableRowNext.getCell(5).setParagraph(fillParagraph(document, Integer.toString(value[3]))); //не допущ.
             tableRowNext.getCell(6).setParagraph(fillParagraph(document, Integer.toString(value[4]))); //послерейсовых.
+            tableRowNext.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f", procent*100))); //%невыпуска
         }
 
         //добавляем последнюю строку с итоговыми счетчиками
@@ -1056,6 +896,7 @@ public class MainServlet extends HttpServlet {
         tableRowLast.getCell(4).setParagraph(fillParagraph(document, Integer.toString(countDopusk))); //допущ.
         tableRowLast.getCell(5).setParagraph(fillParagraph(document, Integer.toString(countNoDopusk))); //не допущ.
         tableRowLast.getCell(6).setParagraph(fillParagraph(document, Integer.toString(countPosler))); //послер.
+        tableRowLast.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f", (countNoDopusk/(float)countMedOsm)*100))); //%невыпуска итоговый
 
         //List<XWPFParagraph> allParagraphs = document.getParagraphs();
 
@@ -1072,7 +913,7 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
-    private String makeWordDocumentTable1XLS (TreeMap<Integer, Integer[]> preparedList, String uploadFilePath) throws IOException, XmlException {
+    private String makeWordDocumentTable1XLS (TreeMap<Integer, FactTable> preparedList, String uploadFilePath) throws IOException, XmlException {
         String copyright = "\u00a9";
         String res = File.separator+organization+" (фактич.) ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
@@ -1105,8 +946,8 @@ public class MainServlet extends HttpServlet {
         run.setFontSize(14);
         run.setText("Отчет по "+organization);                  run.addCarriageReturn();
         run.setText("за фактически проведенные предрейсовые и");run.addCarriageReturn();
-        run.setText("послерейсовые медицинские осмотры автоматизированным способом");       run.addCarriageReturn();
-        run.setText("за "+period.toLowerCase()+" месяц "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
+        run.setText("послерейсовые медицинские осмотры");       run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
         run.addCarriageReturn(); //возможно убрать пустую строку
 
         //create table
@@ -1128,42 +969,48 @@ public class MainServlet extends HttpServlet {
         tableRowOne.getCell(3).setParagraph(fillParagraph(document, "Количество предрейсовых мед.осмотров"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество водителей, допущенных к работе"));
+        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Допуск\""));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество водителей, не допущенных к работе"));
+        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Не допуск\""));
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(6).setParagraph(fillParagraph(document, "Количество послерейсовых мед.осмотров"));
 
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(7).setParagraph(fillParagraph(document, "% невыпуска"));
 
         //table.getRow(0).getCell(0).addParagraph();
 
         Iterator iterator = preparedList.keySet().iterator();
         int count = 0;          //счетчик строк таблицы
+        int countMedOsm = 0;    //счетчик мед.осмотров общий
+        int countPredr = 0;     //счетчик предрейсовых МО
         int countDopusk = 0;    //счетчик допусков
         int countNoDopusk = 0;  //счетчик не допусков
-        int countMedOsm = 0;    //счетчик мед.осмотров
         int countPoslereis = 0; //счетчик послерейс.мед.осмотров
+
         while(iterator.hasNext()) {
             count++;
             Integer key   =(Integer) iterator.next();
-            Integer[] value = preparedList.get(key);
-            int vsego = value[0]+value[1];  //всего осмотров за этот день (предрейс + послерейс)
-            countDopusk = countDopusk + value[0]; //все из предрейса допущены
-            countPoslereis = countPoslereis + value[1];
-            countNoDopusk = countNoDopusk + value[2];
-            countMedOsm = countMedOsm + vsego;
+            FactTable value = preparedList.get(key);
+
+            countMedOsm = countMedOsm + value.obscheeChisloMO;
+            countPredr = countPredr + value.kolichPredreisMO;  //всего предр. осмотров за этот день
+            countDopusk = countDopusk + value.kolichDopuskov;
+            countNoDopusk = countNoDopusk + value.kolichNedopuskov;
+            countPoslereis = countPoslereis + value.kolichPoslerMO;
 
             //create next rows
             XWPFTableRow tableRowNext = table.createRow();
             tableRowNext.getCell(0).setParagraph(fillParagraph(document, Integer.toString(count)));
             tableRowNext.getCell(1).setParagraph(fillParagraph(document, Integer.toString(key)));      //день месяца
-            tableRowNext.getCell(2).setParagraph(fillParagraph(document, Integer.toString(vsego)));    //всего мед.осм.
-            tableRowNext.getCell(3).setParagraph(fillParagraph(document, Integer.toString(value[0]))); //предрейс.
-            tableRowNext.getCell(4).setParagraph(fillParagraph(document, Integer.toString(value[0]))); //допущ.
-            tableRowNext.getCell(5).setParagraph(fillParagraph(document, Integer.toString(value[2]))); //не допущ.
-            tableRowNext.getCell(6).setParagraph(fillParagraph(document, Integer.toString(value[1]))); //послерейс.
+            tableRowNext.getCell(2).setParagraph(fillParagraph(document, Integer.toString(value.obscheeChisloMO)));    //всего мед.осм.
+            tableRowNext.getCell(3).setParagraph(fillParagraph(document, Integer.toString(value.kolichPredreisMO))); //предрейс.
+            tableRowNext.getCell(4).setParagraph(fillParagraph(document, Integer.toString(value.kolichDopuskov))); //допущ.
+            tableRowNext.getCell(5).setParagraph(fillParagraph(document, Integer.toString(value.kolichNedopuskov))); //не допущ.
+            tableRowNext.getCell(6).setParagraph(fillParagraph(document, Integer.toString(value.kolichPoslerMO))); //послерейс.
+            tableRowNext.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f",(value.procentNedopuska*100)))); //%.недопуска
         }
 
         //добавляем последнюю строку с итоговыми счетчиками
@@ -1175,11 +1022,12 @@ public class MainServlet extends HttpServlet {
         //tableRowLast.getCell(2).setParagraph(paragraph);
         tableRowLast.getCell(2).setParagraph(fillParagraph(document, Integer.toString(countMedOsm)));   //всего мед.осм.
         //tableRowLast.getCell(3).setParagraph(paragraph);
-        tableRowLast.getCell(3).setParagraph(fillParagraph(document, Integer.toString(countDopusk)));   //предрейс.
+        tableRowLast.getCell(3).setParagraph(fillParagraph(document, Integer.toString(countPredr)));   //предрейс.
         //tableRowLast.getCell(4).setParagraph(paragraph);
         tableRowLast.getCell(4).setParagraph(fillParagraph(document, Integer.toString(countDopusk)));   //допущ.
         tableRowLast.getCell(5).setParagraph(fillParagraph(document, Integer.toString(countNoDopusk))); //не допущ.
         tableRowLast.getCell(6).setParagraph(fillParagraph(document, Integer.toString(countPoslereis))); //послерейс.
+        tableRowLast.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f", (countNoDopusk/(float)countMedOsm)*100))); //%невыпуска итоговый
 
         //List<XWPFParagraph> allParagraphs = document.getParagraphs();
 
@@ -1201,9 +1049,11 @@ public class MainServlet extends HttpServlet {
                                              ArrayList<Integer> alldates,
                                              TreeMap<String, int[]> medOsmotryByFIOXLS,
                                              String uploadFilePath) throws IOException, XmlException, InterruptedException {
+        String type = "";
         String copyright = "\u00a9";
         String res = File.separator+organization+" ("+vidOtcheta+") ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
+        if (vidOtcheta.equals("точки осм.")) type = "Точка осмотра"; else type = "ФИО";
 
         //For writing the Document in file system
         FileOutputStream out = new FileOutputStream(new File(uploadFilePath + res));
@@ -1252,10 +1102,11 @@ public class MainServlet extends HttpServlet {
         paragraph.setAlignment(ParagraphAlignment.CENTER);
         run.setFontFamily("Times New Roman");
         run.setFontSize(14);
-        run.setText("Детализация прохождения предрейсовых/послерейсовых"); run.addCarriageReturn();
-        run.setText("медицинских осмотров водителей автоматизированным способом"); run.addCarriageReturn();
+        run.setText("Детализация"); run.addCarriageReturn();
+        run.setText("предрейсовых(предсменных)/послерейсовых(послесменных)"); run.addCarriageReturn();
+        run.setText("медицинских осмотров автоматизированным способом"); run.addCarriageReturn();
         run.setText(organization);run.addCarriageReturn();
-        run.setText("за "+period.toLowerCase()+" месяц "+god+" года");run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года");run.addCarriageReturn();
         //run.addCarriageReturn(); //возможно убрать пустую строку
 
         //create table
@@ -1273,7 +1124,7 @@ public class MainServlet extends HttpServlet {
         tableRowOne.getCell(0).setParagraph(fillParagraphBold(document, "№ п/п"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(1).setParagraph(fillParagraphBold(document, "ФИО \\ День месяца"));
+        tableRowOne.getCell(1).setParagraph(fillParagraphBold(document, type+ " \\ День месяца"));
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(2).setParagraph(fillParagraphBold(document, "∑"));
@@ -1329,6 +1180,419 @@ public class MainServlet extends HttpServlet {
         document.close();
         out.close();
 
+        return res;
+    }
+
+    private String makeWordDocumentStatNedopuskov(List<ArrayList<String>> pred,
+                                          List<ArrayList<String>> posle,
+                                          String uploadFilePath) throws IOException {
+        String copyright = "\u00a9";
+        String res = File.separator + organization + " (недопуски) [" + period.toLowerCase() + "] "
+                + makeFileNameByDateAndTimeCreated() + ".docx";
+
+        //For writing the Document in file system
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
+                + res));
+
+        //Blank Document
+        XWPFDocument document = new XWPFDocument();
+        CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
+        // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
+        XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
+        // создаем верхний колонтитул Word файла
+        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        // устанавливаем сформированный верхний
+        // колонтитул в модель документа Word
+        XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
+        headerFooterPolicy.createHeader(
+                XWPFHeaderFooterPolicy.DEFAULT,
+                new XWPFParagraph[]{headerParagraph}
+        );
+
+        //create Paragraph
+        XWPFParagraph paragraph = document.createParagraph();
+        XWPFRun run = paragraph.createRun();
+        //Set alignment paragraph to CENTER
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        run.setFontFamily("Times New Roman");
+        run.setFontSize(12);
+        //run.setBold(true);
+        run.setText("Статистика причин недопусков");   run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года");            //run.addCarriageReturn();
+
+        //подготовка форматирования ячеек
+        XWPFParagraph paragraphTableCell = document.createParagraph();
+        paragraphTableCell.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableCell.setSpacingAfter(0);
+        paragraphTableCell.setSpacingBetween(1.00);
+
+        XWPFParagraph paragraphTableCellL = document.createParagraph();
+        paragraphTableCellL.setAlignment(ParagraphAlignment.LEFT);
+        paragraphTableCellL.setSpacingAfter(0);
+        paragraphTableCellL.setSpacingBetween(1.00);
+
+        List<ArrayList<String>> listVseMO = new ArrayList<>(); // для объединения
+        //объединяем списки
+        listVseMO.addAll(pred);
+        listVseMO.addAll(posle);
+
+        Integer[] itog = makeStatNedopuskov(document, listVseMO, paragraphTableCell, paragraphTableCellL); //формирование таблицы в документе ворд
+        //itog[] = всего осм, кол-во недопусков, в т.ч. по мед.причинам
+        //добавляем итоговые записи вида:
+        //Всего недопусков:           79 (21,5% от всех осмотров)
+        //в т.ч. по мед.причинам:     58 (15,8% от всех осмотров)
+        XWPFParagraph paragraphText = document.createParagraph();
+        paragraphText.setAlignment(ParagraphAlignment.LEFT);
+        XWPFRun runText = paragraphText.createRun();
+        runText.setFontFamily("Times New Roman");
+        runText.setFontSize(11);
+        runText.setText("Всего недопусков: "+itog[1]+" ("+String.format("%.2f", (itog[1]/(float)itog[0])*100)+"% от всех осмотров)");   runText.addCarriageReturn();
+        runText.setText("в т.ч. по мед.причинам: "+itog[2]+" ("+String.format("%.2f", (itog[2]/(float)itog[0])*100)+"% от всех осмотров)");   //run.addCarriageReturn();
+
+        document.write(out); //сохраняем файл отчета в Word
+        out.close();
+        document.close();
+        return res;
+    }
+
+    private Integer[] makeStatNedopuskov(XWPFDocument wordDoc, List<ArrayList<String>> listVseMO, XWPFParagraph par1, XWPFParagraph par2) {
+        int vsegoMO = listVseMO.size(); //общее число медосмотров
+        int countNedopuskiMO = 0; //счетчик для недопусков по мед.причинам
+        int chisloNedopuskov = 0; //суммарное число недопусков
+        String vidNedopuska; //вид недопуска
+        TreeMap<String, Integer> vseNedopuskiStat = new TreeMap<String, Integer>(); //счетчик недопусков
+        //здесь
+        //  key - вид недопуска (String)
+        //  value - кол-во недопусков по данному виду
+        //проходимся по списку и считаем недопуски по каждому виду
+        for (ArrayList<String> zapis: listVseMO) {
+            String daNet = zapis.get(16);
+            if (daNet.equals("Не допущен")){
+                vidNedopuska = zapis.get(17).trim();
+                if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС"))) countNedopuskiMO++; //подсчет недопусков по мед.причинам
+                if(vseNedopuskiStat.containsKey(vidNedopuska)){ //такой недопуск есть
+                    int count = vseNedopuskiStat.get(vidNedopuska); // получаем число недопусков
+                    count++;                                    // увеличиваем счетчик
+                    vseNedopuskiStat.put(vidNedopuska, count);  // обновляем инфу
+                }
+                else {
+                    vseNedopuskiStat.put(vidNedopuska, 1);      // добавляем первый недопуск данного вида
+                }
+            }
+        }
+
+        //считаем недопуски все
+        for (Integer k: vseNedopuskiStat.values()) {
+            chisloNedopuskov = chisloNedopuskov + k;
+        }
+
+        //create table
+        XWPFTable table = wordDoc.createTable();
+        table.setCellMargins(10,50,10,50);
+        table.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+        //create first row
+        XWPFTableRow tableRowOne = table.getRow(0);
+
+        tableRowOne.getCell(0).setParagraph(par1);
+        tableRowOne.getCell(0).setText("№ п/п");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(1).setParagraph(par2);
+        tableRowOne.getCell(1).setText("Комментарий") /*.setParagraph(fillParagraphBold(document, "ФИО сотрудника"))*/;
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(2).setParagraph(par1);
+        tableRowOne.getCell(2).setText("Количество недопусков");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(3).setParagraph(par1);
+        tableRowOne.getCell(3).setText("% от всех недопусков");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(4).setParagraph(par1);
+        tableRowOne.getCell(4).setText("% от всех осмотров");
+
+        //добавляем остальные строки (начальные даты месяца в конце списка)
+        int i = 0;
+        for (String st:vseNedopuskiStat.keySet()) {
+            int num = vseNedopuskiStat.get(st); //число недопусков по данному виду недопусков
+            XWPFTableRow tableRowNext = table.createRow();
+            tableRowNext.getCell(0).setParagraph(par1);
+            tableRowNext.getCell(0).setText(Integer.toString(++i)); // № п/п
+            tableRowNext.getCell(1).setParagraph(par2);
+            tableRowNext.getCell(1).setText(st);                       // Комментарий (вид недопуска)
+            tableRowNext.getCell(2).setParagraph(par1);
+            tableRowNext.getCell(2).setText(Integer.toString(num));    // Количество недопусков данного вида
+            tableRowNext.getCell(3).setParagraph(par1);
+            tableRowNext.getCell(3).setText(String.format("%.2f", (num/(float)chisloNedopuskov)*100));    // % от всех недопусков
+            tableRowNext.getCell(4).setParagraph(par1);
+            tableRowNext.getCell(4).setText(String.format("%.2f", (num/(float)vsegoMO)*100));             // % от всех осмотров
+        }
+        //возвращаем данные для последних итоговых строк
+        Integer[] res = new Integer[3];
+        res[0] = vsegoMO;
+        res[1] = chisloNedopuskov;
+        res[2] = countNedopuskiMO;
+        return res;
+    }
+
+    private String makeWordDocumentReestr(List<ArrayList<String>> pred,
+                                          List<ArrayList<String>> posle,
+                                          List<ArrayList<String>> line,
+                                          String uploadFilePath) throws IOException, XmlException {
+        String copyright = "\u00a9";
+        String res = File.separator + organization + " (реестр) [" + period.toLowerCase() + "] "
+                + makeFileNameByDateAndTimeCreated() + ".docx";
+
+        //For writing the Document in file system
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
+                + res));
+
+        //считаем кол-во осмотров, допусков, недопусков и сколько водителей осмотрели + общий процент недопуска
+        int vsegoOsm = countOsm(pred, posle, line);
+        int dopuskov = countDopusk(pred, posle, line);
+        int nedopuskov = /*countNedopusk(pred, posle, line);*/ vsegoOsm-dopuskov;
+        float procentNedopuskov = nedopuskov/(float)vsegoOsm;
+        int chisloVoditelei = countVod(pred, posle, line); //ОК
+        int before = 0;
+        int after = 0;
+        int regular = 0;
+        if (!pred.isEmpty()) before=pred.size();
+        if (!posle.isEmpty()) after=posle.size();
+        if (!line.isEmpty()) regular=line.size();
+        //int tablesCounter = 0; //счетчик номеров таблиц
+        int [] tablesCounter = new int [1]; //счетчик номеров таблиц
+        String fraza1 = "Всего осмотров: "+vsegoOsm+", в т.ч. предрейсовых – "+before;
+        String fraza2 = "Допусков, всего – "+dopuskov+", не допусков – "+nedopuskov+", что составило "+String.format("%.2f", procentNedopuskov*100)+"% от общего числа медосмотров.";
+        String fraza3 = "Всего осмотрено сотрудников: "+chisloVoditelei+" чел.";
+        String dobavka ="";
+        if (after>0) dobavka = dobavka+", послерейсовых – "+after;
+        if (regular>0) dobavka = dobavka+", линейных – "+regular;
+        dobavka = dobavka+".";
+        fraza1 = fraza1+dobavka;
+        // посчитали и подготовили текст (три фразы в три строки)
+
+        //Blank Document
+        XWPFDocument document = new XWPFDocument();
+        CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
+        // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
+        XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
+        // создаем верхний колонтитул Word файла
+        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        // устанавливаем сформированный верхний
+        // колонтитул в модель документа Word
+        XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
+        headerFooterPolicy.createHeader(
+                XWPFHeaderFooterPolicy.DEFAULT,
+                new XWPFParagraph[]{headerParagraph}
+        );
+
+        //create Paragraph
+        XWPFParagraph paragraph = document.createParagraph();
+        XWPFRun run = paragraph.createRun();
+        //Set alignment paragraph to CENTER
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        run.setFontFamily("Times New Roman");
+        run.setFontSize(12);
+        run.setBold(true);
+        run.setText("Отчет по медицинским осмотрам сотрудников "+organization);   run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года");            //run.addCarriageReturn();
+
+        XWPFParagraph paragraphText = document.createParagraph();
+        paragraphText.setAlignment(ParagraphAlignment.LEFT);
+        XWPFRun runText = paragraphText.createRun();
+        runText.setFontFamily("Times New Roman");
+        runText.setFontSize(12);
+        //runText.addCarriageReturn(); //возможно убрать пустую строку
+        runText.setText(fraza1); runText.addCarriageReturn();
+        runText.setText(fraza2); runText.addCarriageReturn();
+        runText.setText(fraza3); //runText.addCarriageReturn();
+        //  до табличных реестров выводим надпись вида
+        //  Всего осмотров: 652, в т.ч. предрейсовых – 636, послерейсовых – 16.
+        //  Допусков, всего – 547, не допусков – 105, что составило 16,1% от общего числа медосмотров.
+        //  Всего осмотрено водителей: 209 чел.
+
+        //подготовка форматирования ячеек
+        XWPFParagraph paragraphTableCell = document.createParagraph();
+        paragraphTableCell.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableCell.setSpacingAfter(0);
+        paragraphTableCell.setSpacingBetween(1.00);
+
+        XWPFParagraph paragraphTableCellL = document.createParagraph();
+        paragraphTableCellL.setAlignment(ParagraphAlignment.LEFT);
+        paragraphTableCellL.setSpacingAfter(0);
+        paragraphTableCellL.setSpacingBetween(1.00);
+
+
+        if (!pred.isEmpty()) makeReestr(document, "предрейсовых", pred, tablesCounter, paragraphTableCell, paragraphTableCellL);
+        if (!posle.isEmpty()) makeReestr(document, "послерейсовых", posle, tablesCounter, paragraphTableCell, paragraphTableCellL);
+        if (!line.isEmpty()) makeReestr(document, "линейных", line, tablesCounter, paragraphTableCell, paragraphTableCellL);
+
+        document.write(out); //сохраняем файл отчета в Word
+        out.close();
+        document.close();
+        return res;
+    }
+
+    private void makeReestr (XWPFDocument wordDoc,
+                             String vid,
+                             List<ArrayList<String>> spisok,
+                             int[] num,
+                             XWPFParagraph par1,
+                             XWPFParagraph par2){
+        int size = spisok.size();
+        int n = num[0];
+        XWPFParagraph paragraphTableNum = wordDoc.createParagraph();
+        paragraphTableNum.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum.setSpacingAfter(0);
+        paragraphTableNum.setSpacingBetween(1.00);
+        XWPFRun runTableNum = paragraphTableNum.createRun();
+        runTableNum.setFontFamily("Times New Roman");
+        runTableNum.setFontSize(12);
+        runTableNum.addCarriageReturn();
+        runTableNum.setText("Табл. "+(++n)); //runTableNum.addCarriageReturn();
+        // Табл. 1
+        //обновляем значение номера таблицы для следующего реестра
+        num[0] = n;
+        XWPFParagraph paragraphTableName = wordDoc.createParagraph();
+        paragraphTableName.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName.setSpacingAfter(0);
+        paragraphTableName.setSpacingBetween(1.00);
+        XWPFRun runTableName = paragraphTableName.createRun();
+        runTableName.setFontFamily("Times New Roman");
+        runTableName.setFontSize(12);
+        runTableName.setText("Реестр "+vid+" медицинских осмотров."); //runTableName.addCarriageReturn();
+
+        //create table
+        XWPFTable table = wordDoc.createTable();
+        table.setCellMargins(10,50,10,50);
+        table.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+        //create first row
+        XWPFTableRow tableRowOne = table.getRow(0);
+
+        tableRowOne.getCell(0).setParagraph(par1);
+        tableRowOne.getCell(0).setText("№ п/п");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(1).setParagraph(par1);
+        tableRowOne.getCell(1).setText("ФИО сотрудника") /*.setParagraph(fillParagraphBold(document, "ФИО сотрудника"))*/;
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(2).setParagraph(par1);
+        tableRowOne.getCell(2).setText("Дата осмотра");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(3).setParagraph(par1);
+        tableRowOne.getCell(3).setText("Время осмотра");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(4).setParagraph(par1);
+        tableRowOne.getCell(4).setText("Результат");
+
+        //добавляем остальные строки (начальные даты месяца в конце списка)
+        for (int i = size; i>0; i--){
+            String[] timestamp = spisok.get(i-1).get(1).split(" ");
+            XWPFTableRow tableRowNext = table.createRow();
+            tableRowNext.getCell(0).setParagraph(par1);
+            tableRowNext.getCell(0).setText(Integer.toString(size-i+1)); // № п/п
+            tableRowNext.getCell(1).setParagraph(par2);
+            tableRowNext.getCell(1).setText(spisok.get(i-1).get(6));   // ФИО сотрудника
+            tableRowNext.getCell(2).setParagraph(par1);
+            tableRowNext.getCell(2).setText(timestamp[0]);   // Дата осмотра
+            tableRowNext.getCell(3).setParagraph(par1);
+            tableRowNext.getCell(3).setText(timestamp[1]);   // Время осмотра
+            tableRowNext.getCell(4).setParagraph(par2);
+            tableRowNext.getCell(4).setText(spisok.get(i-1).get(16));   // Результат
+        }
+    }
+
+    private int countVod(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+        int res;
+        Set<String> Voditeli = new HashSet<>();
+        if (!pred.isEmpty()){
+            for (ArrayList<String> st0: pred) {
+                Voditeli.add(st0.get(6));
+            }
+        }
+        if (!posle.isEmpty()){
+            for (ArrayList<String> st1: posle) {
+                Voditeli.add(st1.get(6));
+            }
+        }
+        if (!line.isEmpty()){
+            for (ArrayList<String> st2: line) {
+                Voditeli.add(st2.get(6));
+            }
+        }
+        res = Voditeli.size();
+        return res;
+    }
+
+    private int countOsm(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+        int res = 0;
+        if (!pred.isEmpty()){
+            res = res + pred.size();
+        }
+        if (!posle.isEmpty()) {
+            res = res + posle.size();
+        }
+        if (!line.isEmpty()) {
+            res = res + line.size();
+        }
+        return res;
+    }
+
+    private int countDopusk(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+        int res = 0;
+        if (!pred.isEmpty()){
+            for (ArrayList<String> st0: pred) {
+                if (st0.get(16).equals("Допущен")){
+                    res++;
+                }
+            }
+        }
+        if (!posle.isEmpty()) {
+            for (ArrayList<String> st1 : posle) {
+                if (st1.get(16).equals("Допущен")) {
+                    res++;
+                }
+            }
+        }
+        if (!line.isEmpty()) {
+            for (ArrayList<String> st2 : line) {
+                if (st2.get(16).equals("Допущен")) {
+                    res++;
+                }
+            }
+        }
+        return res;
+    }
+
+    private int countNedopusk(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+        int res = 0;
+        if (!pred.isEmpty()){
+            for (ArrayList<String> st0: pred) {
+                if (st0.get(16).equals("Не допущен")){
+                    res++;
+                }
+            }
+        }
+        if (!posle.isEmpty()) {
+            for (ArrayList<String> st1 : posle) {
+                if (st1.get(16).equals("Не допущен")) {
+                    res++;
+                }
+            }
+        }
+        if (!line.isEmpty()) {
+            for (ArrayList<String> st2 : line) {
+                if (st2.get(16).equals("Не допущен")) {
+                    res++;
+                }
+            }
+        }
         return res;
     }
 
@@ -1598,3 +1862,4 @@ public class MainServlet extends HttpServlet {
         return fileTree;
     }
 }
+
