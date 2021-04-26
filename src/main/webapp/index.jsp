@@ -38,8 +38,10 @@
             				<!--<p>Отчет, подготовленный вручную</p>
                             <p><input name="file_p" type="file" id="file_p" accept=".xls"></p>-->
             </fieldset>
-            <p><button type="submit" >Сформировать новый</button></p>
+            <p><button type="submit" >Сформировать</button></p>
             <p>Отчеты, сформированные ранее, доступны <a href="list">здесь</a>.</p>
+            <br>
+            <p><a href="/resources/04-2021-primer.xlsx" target="_blank">Скачать</a> пример выгрузки меджурнала (для оценки формируемых отчётов).</p>
           </form>
         </div>
                       <br>

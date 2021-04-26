@@ -27,6 +27,8 @@ import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static org.apache.poi.ss.usermodel.CellType.*;
@@ -62,12 +64,12 @@ public class MainServlet extends HttpServlet {
         int kolichPoslerMO;
         float procentNedopuska;
 
-        public void setProcentNedopuska() {
+        void setProcentNedopuska() {
             this.procentNedopuska = this.kolichNedopuskov / (float)this.obscheeChisloMO;
         }
 
         //конструктор
-        public FactTable(int obscheeChisloMO, int kolichPredreisMO, int kolichDopuskov, int kolichNedopuskov, int kolichPoslerMO) {
+        FactTable(int obscheeChisloMO, int kolichPredreisMO, int kolichDopuskov, int kolichNedopuskov, int kolichPoslerMO) {
             this.obscheeChisloMO = obscheeChisloMO;
             this.kolichPredreisMO = kolichPredreisMO;
             this.kolichDopuskov = kolichDopuskov;
@@ -77,7 +79,7 @@ public class MainServlet extends HttpServlet {
         }
 
         //конструктор по умолчанию
-        public FactTable() {
+        FactTable() {
         }
     }
 
@@ -105,16 +107,27 @@ public class MainServlet extends HttpServlet {
                 //Получаем список файлов-отчетов в папке с отчетами
                 filesList = getFileTree(uploadFilePath);
 
-                //Готовим таблицу из списка
-                // Назв.орг. | Тип.отч | Период(месяц) |  Дата/время создания | Скачать | Удалить
-                //spisokOtchetov = makeTableFromFilelist(filesList);
-                spisokOtchetov_v2 = makeTableFromFilelist_v2(filesList);
-                response.setContentType("text/html");
-                request.setCharacterEncoding ("UTF-8");
-                response.setCharacterEncoding("UTF-8");
-                request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
-                requestDispatcher = request.getRequestDispatcher("list.jsp");
-                requestDispatcher.forward(request, response);
+                if((!filesList.isEmpty())&(filesList.get(0)=="empty")){
+                    response.setContentType("text/html");
+                    request.setCharacterEncoding ("UTF-8");
+                    response.setCharacterEncoding("UTF-8");
+                    request.setAttribute("message", "Отчеты отсутствуют.");
+                    request.setAttribute("debug", "Папка с отчетами пуста.");
+                    requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                    requestDispatcher.forward(request, response);
+                }else{
+                    //Готовим таблицу из списка
+                    // Назв.орг. | Тип.отч | Период(месяц) |  Дата/время создания | Скачать | Удалить
+                    //spisokOtchetov = makeTableFromFilelist(filesList);
+                    spisokOtchetov_v2 = makeTableFromFilelist_v2(filesList);
+                    response.setContentType("text/html");
+                    request.setCharacterEncoding ("UTF-8");
+                    response.setCharacterEncoding("UTF-8");
+                    request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
+                    requestDispatcher = request.getRequestDispatcher("list.jsp");
+                    requestDispatcher.forward(request, response);
+
+                }
                 break;
             case "delete":
                 //получаем номер отчета для удаления
@@ -192,6 +205,7 @@ public class MainServlet extends HttpServlet {
         String table4FileName = "";                 // название файла Word с отчетной таблицей 4 по точкам (для скачивания)
         String table5FileName = "";                 // название файла Word с отчетной таблицей 5 реестр осмотров (для скачивания)
         String table6FileName = "";                 // название файла Word с отчетной таблицей 6 причины недопусков (для скачивания)
+        String table7FileName = "";                 // название файла Word с отчетной таблицей 7 группы риска (для скачивания)
         //InputStream inputStream;                  // поток чтения для загружаемого файла
         XSSFWorkbook workBookXLSX;                  // объект книги эксель xlsx
         HSSFWorkbook myExcelBookXLS = null;         // объект книги эксель xls
@@ -210,17 +224,10 @@ public class MainServlet extends HttpServlet {
         //т.е. здесть Integer Key - дата мед.осм.
         //FactTable Value - таблица: общ.число.МО|кол.предр.МО|допусков|недопусков|кол.послер.МО|%невыпуска (в эту дату)
 
-        TreeMap<Integer, int[]> medOsmotryByDatesALL = new TreeMap<Integer, int[]>();
+        TreeMap<String, DriverRiskData> gruppyRiskaByFIO = new TreeMap<String, DriverRiskData>();
         //т.е. здесть Integer Key - дата мед.осм.
         //int[] Value - таблица: общ.кол|предр|допущ|недоущ|послер| (в эту дату) --> добавить столбец %невыпуска
 
-        // %невыпуска (для добавления последнего столбца при формировании документа ворд
-        TreeMap<Integer, Float> medOsmotryByDatesAllProcent = new TreeMap<Integer, Float>();
-
-        //итоговые данные отсортированы по дате (Поликлиника)
-        TreeMap<Integer, Integer[]> medOsmotryByDatesXLS;
-        //т.е. здесть Integer Key - дата мед.осм.
-        //Integer[] Value - таблица предрейс / послерейс (в эту дату)
 
         //Массив дат медосмотров (для Табл.№2)
         ArrayList<Integer> dates = new ArrayList<>();
@@ -334,6 +341,13 @@ public class MainServlet extends HttpServlet {
             // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
             medOsmByHost = prepareTable2(list, listPosleAndLine, dates, 4);
 
+            // (Табл.7 Группы риска)
+            try {
+                gruppyRiskaByFIO = prepareTableGruppyRiska(list, listPosleAndLine);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             // gets absolute path of the web application
             String applicationPath = request.getServletContext().getRealPath("");
             // constructs path of the directory to save uploaded file
@@ -365,6 +379,9 @@ public class MainServlet extends HttpServlet {
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
                 table6FileName = makeWordDocumentStatNedopuskov(list, listPosleAndLine, uploadFilePath);
 
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table7FileName)
+                table7FileName = makeWordDocumentGruppaRiska(gruppyRiskaByFIO, uploadFilePath);
+
             } catch (XmlException e) {
                 e.printStackTrace();
                 //response.setContentType("text/html");
@@ -381,6 +398,7 @@ public class MainServlet extends HttpServlet {
             request.setAttribute("docx4Name", table4FileName);
             request.setAttribute("docx5Name", table5FileName);
             request.setAttribute("docx6Name", table6FileName);
+            request.setAttribute("docx7Name", table7FileName);
             request.setAttribute("reportsDir", REPORTS_DIR);
             request.setAttribute("message", "Отчёты по меджурналу Medpoint24 сформированы успешно!");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
@@ -773,6 +791,82 @@ public class MainServlet extends HttpServlet {
                 result.put(fio, calendDates);
             }
 
+        }
+        return result;
+    }
+
+    private TreeMap<String,DriverRiskData> prepareTableGruppyRiska(List<ArrayList<String>> pred, List<ArrayList<String>> posle) throws Exception {
+        //заготовка для результата
+        TreeMap<String, DriverRiskData> result = new TreeMap<>();
+
+        String vidNedopuska = "";
+        String FIO = "";
+        String denRogdeniya = "";
+        DriverRiskData temp;
+
+        List<ArrayList<String>> listVseMO = new ArrayList<>(); // для объединения предрейса и послерейса
+        //объединяем списки
+        listVseMO.addAll(pred);
+        listVseMO.addAll(posle);
+
+        //формируем список по ФИО водителей
+        for (ArrayList<String> zapis: listVseMO) {
+            //получаем водителя и пустую заготовку данных
+            FIO = zapis.get(6);
+            denRogdeniya = zapis.get(8);
+            temp = new DriverRiskData(denRogdeniya, 0, 0, 0, new ArrayList<Integer>(), new ArrayList<Integer>(), new ArrayList<Integer>());
+
+            //если водителя нет в списке - добавляем все данные из записи
+            //если водитель есть в списке - обновляем данные
+            if ((result.get(FIO)==null))       // если эта фамилия еще не внесена
+            {
+                //получаем данные
+                String daNet = zapis.get(16); // допущен / не допущен
+                String[] bloodPressure = zapis.get(11).trim().split("/"); //[0]-САД [1]-ДАД
+                //temp.setDataRojdeniya(zapis.get(8)); //дата рожд.
+                temp.setOsmotrovVsego(1); //начальное значение общего числа осмотров по данному сотруднику
+
+                if (daNet.equals("Не допущен")){
+                    vidNedopuska = zapis.get(17).trim();
+                    if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС")))  { //недопуск по мед.причинам
+                        temp.setNedopuskov(1);    //начальное значение числа недопусков
+                        temp.setDopuskov(0);      //начальное значение числа допусков
+                    }
+                } else { //допущен
+                    temp.setNedopuskov(0);    //начальное значение числа недопусков
+                    temp.setDopuskov(1);      //начальное значение числа допусков
+                }
+
+                temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
+                temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
+                temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+
+                //добавляем фамилию (ключ) и начальные счетчики его осмотра
+                result.put(FIO, temp);
+            } else {       // если эта фамилия уже внесена
+                // получаем значения для обновления
+                temp = result.get(FIO);
+                //получаем данные
+                String daNet = zapis.get(16); // допущен / не допущен
+                String[] bloodPressure = zapis.get(11).trim().split("/"); //[0]-САД [1]-ДАД
+                temp.setOsmotrovVsego(temp.getOsmotrovVsego()+1); //обновляем значение общего числа осмотров по данному сотруднику
+
+                if (daNet.equals("Не допущен")){
+                    vidNedopuska = zapis.get(17).trim();
+                    if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС")))  { //недопуск по мед.причинам
+                        temp.setNedopuskov(temp.getNedopuskov()+1);    //увеличиваем значение числа недопусков
+                    }
+                } else { //допущен
+                    temp.setDopuskov(temp.getDopuskov()+1);      //увеличиваем значение числа допусков
+                }
+
+                temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
+                temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
+                temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+
+                //добавляем фамилию (ключ) и новые счетчики его осмотрa
+                result.put(FIO, temp);
+            }
         }
         return result;
     }
@@ -1180,6 +1274,156 @@ public class MainServlet extends HttpServlet {
         document.close();
         out.close();
 
+        return res;
+    }
+
+    private String makeWordDocumentGruppaRiska(TreeMap<String, DriverRiskData> spisok,
+                                               String uploadFilePath) throws IOException {
+        TreeMap<Float, DriverRiskData> riskGroup = new TreeMap<>();
+        String copyright = "\u00a9";
+        String res = File.separator + organization + " (гр.риска) [" + period.toLowerCase() + "] "
+                + makeFileNameByDateAndTimeCreated() + ".docx";
+
+        //For writing the Document in file system
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
+                + res));
+
+        //отбираем в группу риска сотрудников с тремя и более осмотрами + недопусками от 20% и сортируем по %недопуска
+        for (String s: spisok.keySet()) {
+            spisok.get(s).setProcentNedopuskov(); //считаем % недопуски
+            spisok.get(s).setFIO(s);    //устанавливаем фамилию - дубляж :/
+            if ((spisok.get(s).getOsmotrovVsego()>=3)&(spisok.get(s).getProcentNedopuskov()>=0.2)){
+                riskGroup.put(spisok.get(s).getProcentNedopuskov(), spisok.get(s));
+            }
+        }
+
+        //Blank Document
+        XWPFDocument document = new XWPFDocument();
+        CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
+        // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
+        XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
+        // создаем верхний колонтитул Word файла
+        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        // устанавливаем сформированный верхний
+        // колонтитул в модель документа Word
+        XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
+        headerFooterPolicy.createHeader(
+                XWPFHeaderFooterPolicy.DEFAULT,
+                new XWPFParagraph[]{headerParagraph}
+        );
+
+        //create Paragraph
+        XWPFParagraph paragraph = document.createParagraph();
+        XWPFRun run = paragraph.createRun();
+        //Set alignment paragraph to CENTER
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        run.setFontFamily("Times New Roman");
+        run.setFontSize(12);
+        //run.setBold(true);
+        run.setText("Группы риска");   run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года");
+
+        if (riskGroup==null){
+            run.addCarriageReturn();
+            run.addCarriageReturn();
+            run.setText("Группы риска не сформированы, т.к. отсутствуют сотрудники с 3 и более осмотрами.");
+        } else {
+            //подготовка форматирования ячеек
+            XWPFParagraph paragraphTableCell = document.createParagraph();
+            paragraphTableCell.setAlignment(ParagraphAlignment.CENTER);
+            paragraphTableCell.setSpacingAfter(0);
+            paragraphTableCell.setSpacingBetween(1.00);
+
+            XWPFParagraph paragraphTableCellL = document.createParagraph();
+            paragraphTableCellL.setAlignment(ParagraphAlignment.LEFT);
+            paragraphTableCellL.setSpacingAfter(0);
+            paragraphTableCellL.setSpacingBetween(1.00);
+            //XWPFRun cellrun = paragraphTableCellL.createRun();
+            //cellrun.setFontFamily("Calibri");
+            //cellrun.setFontSize(9);
+
+            //create table
+            XWPFTable table = document.createTable();
+            table.setCellMargins(10,50,10,50);
+            table.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+            //create first row
+            XWPFTableRow tableRowOne = table.getRow(0);
+
+            tableRowOne.getCell(0).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(0).setText("№ п/п");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(1).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(1).setText("ФИО сотрудника");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(2).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(2).setText("Дата рождения");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(3).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(3).setText("Возраст, полных лет");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(4).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(4).setText("Осмотров всего");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(5).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(5).setText("Допуски");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(6).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(6).setText("Недопуски по мед. причинам");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(7).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(7).setText("% недопусков");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(8).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(8).setText("Ср. знач. САД");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(9).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(9).setText("Ср. знач. ДАД");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(10).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(10).setText("Ср. знач. ЧСС");
+
+            //добавляем остальные строки (сортировны по %недопуска)
+            int i = 0;
+            for (Float fl:riskGroup.keySet()) {
+                XWPFTableRow tableRowNext = table.createRow();
+                tableRowNext.getCell(0).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(0).setText(Integer.toString(++i));         // № п/п
+                tableRowNext.getCell(1).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(1).setText(riskGroup.get(fl).getFIO());    //ФИО
+                tableRowNext.getCell(2).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(2).setText(riskGroup.get(fl).getDataRojdeniya());         // Дата рождения
+                tableRowNext.getCell(3).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(3).setText(Long.toString(riskGroup.get(fl).getVozrast())); // Возраст
+                tableRowNext.getCell(4).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(4).setText(Integer.toString(riskGroup.get(fl).getOsmotrovVsego()));   // Осмотров всего
+                tableRowNext.getCell(5).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(5).setText(Integer.toString(riskGroup.get(fl).getDopuskov()));   // Допусков
+                tableRowNext.getCell(6).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(6).setText(Integer.toString(riskGroup.get(fl).getNedopuskov()));   // Недопусков
+                tableRowNext.getCell(7).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(7).setText(String.format("%.2f", fl*100));                      // % недопусков
+                tableRowNext.getCell(8).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(8).setText(Integer.toString(riskGroup.get(fl).setSrednSAD()));   // Ср.САД
+                tableRowNext.getCell(9).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(9).setText(Integer.toString(riskGroup.get(fl).setSrednDAD()));   // Ср.ДАД
+                tableRowNext.getCell(10).setParagraph(paragraphTableCellL);
+                tableRowNext.getCell(10).setText(Integer.toString(riskGroup.get(fl).setSrednCHSS())); // Ср.ЧСС
+            }
+        }
+        document.write(out); //сохраняем файл отчета в Word
+        out.close();
+        document.close();
         return res;
     }
 
@@ -1844,22 +2088,149 @@ public class MainServlet extends HttpServlet {
         File path = new File(root);
         Queue<File> directories = new LinkedList<>(); //папки перебираются в очереди
         directories.add(path);
-        while (directories.size()!=0){
-            File[] fList = ((LinkedList<File>) directories).getFirst().listFiles();
-            for (File file : fList) {
-                if (file.isFile()) {            // если файл, то добавляем в список файлов
-                    fileTree.add(file.getAbsolutePath());
+        try {
+            while (directories.size()!=0){
+                File[] fList = ((LinkedList<File>) directories).getFirst().listFiles();
+                for (File file : fList) {
+                    if (file.isFile()) {            // если файл, то добавляем в список файлов
+                        fileTree.add(file.getAbsolutePath());
 
-                } else {
-                    if (file.isDirectory()) {  // если это папка, то добавляем в конец очереди (список папок)
-                        ((LinkedList<File>) directories).addLast(file);
+                    } else {
+                        if (file.isDirectory()) {  // если это папка, то добавляем в конец очереди (список папок)
+                            ((LinkedList<File>) directories).addLast(file);
+                        }
                     }
                 }
+                ((LinkedList<File>) directories).removeFirst(); //прошлись по всей очереди, удаляем первого
             }
-            ((LinkedList<File>) directories).removeFirst(); //прошлись по всей очереди, удаляем первого
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+            fileTree.add("empty");
         }
 
         return fileTree;
+    }
+
+    private class DriverRiskData {
+        String dataRojdeniya;
+        String fio;
+        long vozrast;
+        int osmotrovVsego;
+        int dopuskov;
+        int nedopuskov;
+        float procentNedopuskov;
+        ArrayList<Integer> srednSAD;
+        ArrayList<Integer> srednDAD;
+        ArrayList<Integer> srednCHSS;
+
+        public void setDataRojdeniya(String dataRojdeniya) {
+            this.dataRojdeniya = dataRojdeniya;
+        }
+
+        public void setOsmotrovVsego(int osmotrovVsego) {
+            this.osmotrovVsego = osmotrovVsego;
+        }
+
+        public void setDopuskov(int dopuskov) {
+            this.dopuskov = dopuskov;
+        }
+
+        public void setNedopuskov(int nedopuskov) {
+            this.nedopuskov = nedopuskov;
+        }
+
+        //конструктор по умолчанию
+        public DriverRiskData() {}
+
+        //конструктор
+        public DriverRiskData(String dataRojdeniya,
+                              int osmotrovVsego,
+                              int dopuskov,
+                              int nedopuskov,
+                              //float procentNedopuskov,
+                              ArrayList<Integer> srednSAD,
+                              ArrayList<Integer> srednDAD,
+                              ArrayList<Integer> srednCHSS) {
+            this.dataRojdeniya = dataRojdeniya;
+            this.vozrast = countVozrast(dataRojdeniya);
+            this.osmotrovVsego = osmotrovVsego;
+            this.dopuskov = dopuskov;
+            this.nedopuskov = nedopuskov;
+            //this.procentNedopuskov = procentNedopuskov;
+            this.srednSAD = srednSAD;
+            this.srednDAD = srednDAD;
+            this.srednCHSS = srednCHSS;
+        }
+
+        void setProcentNedopuskov() {
+            this.procentNedopuskov = this.nedopuskov / (float)this.osmotrovVsego;
+        }
+
+        Integer setSrednSAD(){
+            int sum = 0;
+            for (int davlenie : this.srednSAD) {
+                sum = sum + davlenie;
+            }
+            return Math.round(sum/this.srednSAD.size());
+        }
+
+        Integer setSrednDAD(){
+            int sum = 0;
+            for (int davlenie : this.srednDAD) {
+                sum = sum + davlenie;
+            }
+            return Math.round(sum/this.srednDAD.size());
+        }
+
+        Integer setSrednCHSS(){
+            int sum = 0;
+            for (int davlenie : this.srednCHSS) {
+                sum = sum + davlenie;
+            }
+            return Math.round(sum/this.srednCHSS.size());
+        }
+
+        Long countVozrast(String birthDay){
+            String[] dr = birthDay.split("-"); // 31-08-2020  делим по дефису
+            Integer y = Integer.parseInt(dr[2]);
+            Integer m = Integer.parseInt(dr[1]);
+            Integer d = Integer.parseInt(dr[0]);
+
+            LocalDate today = LocalDate.now(); ///of(2010, 5, 17); //
+            LocalDate bday = LocalDate.of(y, m, d); //
+            return ChronoUnit.YEARS.between(bday, today);
+        }
+
+        public void setFIO (String s){ this.fio=s; }
+
+        public String getDataRojdeniya() {
+            return dataRojdeniya;
+        }
+
+        public String getFIO() {
+            return fio;
+        }
+
+        public long getVozrast() {
+            return vozrast;
+        }
+
+        public int getOsmotrovVsego() {
+            return osmotrovVsego;
+        }
+
+        public int getDopuskov() {
+            return dopuskov;
+        }
+
+        public int getNedopuskov() {
+            return nedopuskov;
+        }
+
+        public float getProcentNedopuskov() {
+            return procentNedopuskov;
+        }
+
     }
 }
 

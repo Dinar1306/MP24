@@ -34,7 +34,7 @@
         <div id='tab0' class="tab_content" style="display: block; width: 100%">
             <h3>Список отчетов</h3>
             <p><b>ИНФО:</b> клик по названию столбца для сортировки.<br>
-               <span style="color:red">ВНИМАНИЕ!</span> Удаление происходит без подтверждения, т.е. сразу при нажатии "удал."</p>
+               <span style="color:red">ВНИМАНИЕ!</span> Удаление происходит без подтверждения, т.е. сразу по нажатию кнопки "Удалить"</p>
             <display:table name="spisokOtchetov_v2" pagesize="50" keepStatus="true" export="false" sort="list" uid="zero">
 
                 <display:column property="orgName"    title="Название организации" sortable="true" headerClass="sortable" />
