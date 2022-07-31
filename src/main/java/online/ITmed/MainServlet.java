@@ -1,9 +1,6 @@
 package online.ITmed;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;   //для xls
 import org.apache.poi.ss.usermodel.Cell;
 
 import org.apache.poi.ss.usermodel.CellType;
@@ -35,7 +32,6 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static org.apache.poi.ss.usermodel.CellType.*;
 import static org.apache.poi.xwpf.usermodel.TableRowAlign.CENTER;
 
 @MultipartConfig //запрос может содержать несколько параметров
@@ -211,9 +207,7 @@ public class MainServlet extends HttpServlet {
         String table7FileName = "";                 // название файла Word с отчетной таблицей 7 группы риска (для скачивания)
         //InputStream inputStream;                  // поток чтения для загружаемого файла
         XSSFWorkbook workBookXLSX;                  // объект книги эксель xlsx
-        HSSFWorkbook myExcelBookXLS = null;         // объект книги эксель xls
-        //String[] stroka = new String[20];         // строка таблицы с листа
-        //String[] customs = null;
+
         List<ArrayList<String>> list = new ArrayList<>();     // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listLine = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
@@ -256,8 +250,6 @@ public class MainServlet extends HttpServlet {
         Part part = request.getPart("file");
         long size = part.getSize(); //файл медпойнта
 
-        //Part part_p = request.getPart("file_p");
-        //long size_p = part_p.getSize(); // файл поликлиники
 
         //получаем radiobutton (вид меджурнала: 1 - из дистмед, 2 - старый из V3, 3 - из V3)
         radiobutton = request.getParameterValues("radio");
@@ -324,54 +316,6 @@ public class MainServlet extends HttpServlet {
                     listPosleAndLine.addAll(listPosleReis);
                     listPosleAndLine.addAll(listLine);
 
-
-                    /*
-                    //производим подсчёт по предрейсовым
-                    medOsmotryByDatesPredReis = prepare(list);
-
-                    //производим подсчёт по послерейсовым (старый вариант)
-                    //medOsmotryByDatesPosleReis = prepare(listPosleReis); //старый вариант
-                    //производим подсчёт по объединенному послерейсу и линейному (новый вариант)
-                    medOsmotryByDatesPosleReis = prepare(listPosleAndLine); //новый вариант
-
-                    //производим подсчёт по линейным
-                    //medOsmotryByDatesLine = prepare(listLine);
-
-
-
-                    // (Табл.1 Фактические медосмотры)
-                    medOsmotryByDatesFacticheskie = prepareTable1(medOsmotryByDatesPredReis, medOsmotryByDatesPosleReis);
-
-                    // считаем проценты недопусков в табл.1
-                    for (Map.Entry<Integer, FactTable> entry: medOsmotryByDatesFacticheskie.entrySet()) {
-                        entry.getValue().setProcentNedopuska();
-                    }
-
-                    //получаем массив дат
-                    //for ( Integer keys:medOsmotryByDatesALL.keySet() ) {
-                    for ( Integer keys:medOsmotryByDatesFacticheskie.keySet() ) {
-                        dates.add(keys);
-                    }
-                    // (Табл.2 Детализация, по водителям) предрейс+послерейс, нужен 6й столбец
-                    medOsmotryByFIO = prepareTable2(list, listPosleAndLine, dates, 6);
-
-                    // (Табл.3 Детализация, по медсестрам) предрейс+послерейс, нужен 18й столбец
-                    medRabotnikByFIO = prepareTable2(list, listPosleAndLine, dates, 18);
-
-                    // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
-                    medOsmByHost = prepareTable2(list, listPosleAndLine, dates, 4);
-
-                    // (Табл.7 Группы риска)
-                   try {
-                        gruppyRiskaByFIO = prepareTableGruppyRiska(list, listPosleAndLine);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        request.setAttribute("message", "При обработке файла произошла ошибка.");
-                        request.setAttribute("debug", e.getLocalizedMessage());
-                        RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
-                        requestDispatcher.forward(request, response);
-                        return;
-                    }*/
                     break;
                 } /////////////case 1
                 case 2 : {
@@ -651,21 +595,6 @@ public class MainServlet extends HttpServlet {
         return workBook;
     }
 
-    //получаем объект книги xls
-    private HSSFWorkbook XLSFromPart(Part part){
-        InputStream inputStream;
-        HSSFWorkbook workBook = new HSSFWorkbook();
-        try {
-            inputStream = part.getInputStream();
-            workBook = new HSSFWorkbook(inputStream);
-            inputStream.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-        }
-        return workBook;
-    }
-
     //получаем лист из книги xlsx
     private List<ArrayList<String>> getListFromSheet(XSSFWorkbook workBook, int num) throws IOException { //разбираем первый лист входного файла на объектную модель
         List<ArrayList<String>> res = new ArrayList<>();
@@ -703,62 +632,6 @@ public class MainServlet extends HttpServlet {
             workBook.close();
 
             //chisloMO = 0; //общее число медосмотров из трех списков(предр, послер и линейный)
-        return res;
-    }
-
-    //получаем лист из книги xls
-    private List<ArrayList<String>> getListFromSheetXLS (HSSFWorkbook workBook/*, int num*/) throws IOException,
-                                                                                                    NullPointerException,
-                                                                                                    IllegalStateException{
-        List<ArrayList<String>> res = new ArrayList<>();
-        //получаем лист "Лист1"
-        HSSFSheet myExcelSheet = workBook.getSheet("Лист1");
-        int vsegoStrok = myExcelSheet.getPhysicalNumberOfRows()-1;  //-7;
-
-        for (int i=0; i<=vsegoStrok; i++){
-            HSSFRow row = myExcelSheet.getRow(i);
-            if (row==null) break;
-            short vsegoYacheek = row.getLastCellNum();
-            ArrayList<String> tempStringArray = new ArrayList<>();
-            //System.out.println(i);
-            for (int j=0; j<vsegoYacheek; j++){
-                try {
-                if ((j==1)&(i>2)) {
-                        Date date = row.getCell(j).getDateCellValue();
-                        Calendar calendar = Calendar.getInstance(TimeZone.getDefault(), Locale.getDefault());
-                        calendar.setTime(date);
-                        int day = calendar.get(Calendar.DATE); //получаем дату
-                        tempStringArray.add(String.valueOf(day));
-                } else {
-                    if(row.getCell(j).getCellType() == STRING/*HSSFCell.CELL_TYPE_STRING*/){
-                        tempStringArray.add(row.getCell(j).getStringCellValue());
-                    }
-
-                    if(row.getCell(j).getCellType() == NUMERIC/*HSSFCell.CELL_TYPE_NUMERIC*/){
-                        tempStringArray.add(Double.toString(row.getCell(j).getNumericCellValue()));
-                    }
-
-                    if(row.getCell(j).getCellType() == FORMULA/*HSSFCell.CELL_TYPE_NUMERIC*/){
-                        tempStringArray.add(Double.toString(row.getCell(j).getNumericCellValue()));
-                    }
-                }
-                //сюда катч
-                } catch (NullPointerException e) {
-                    errorStringNumber = i+2;
-                    workBook.close();
-                    throw new NullPointerException();
-                } catch (IllegalStateException e) {
-                    workBook.close();
-                    //errorStringNumber = getIntFromFloatString(tempStringArray.get(0));
-                    errorStringNumber = i-2;
-                    //System.out.println("j="+j+", i="+i);
-                    throw new IllegalStateException();
-                }
-            }
-            res.add(tempStringArray);
-        }
-        workBook.close();
-
         return res;
     }
 
@@ -823,85 +696,6 @@ public class MainServlet extends HttpServlet {
     private int getIntFromFloatString (String floatString){
         float f = Float.parseFloat(floatString);
         return (int) f; // int
-    }
-
-    private TreeMap<Integer, Integer[]> prepareXLS (List<ArrayList<String>> spisokVes){
-        //заготовка для результата
-        TreeMap<Integer, Integer[]> result = new TreeMap<Integer, Integer[]>();
-
-        // foreach
-        for (ArrayList<String> stroka : spisokVes) { //пробегаемся по строкам
-            //Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
-            Integer data = Integer.parseInt(stroka.get(1)); // получаем дату из второй ячейки строки
-
-            // Предрейс или Послерейс -> увеличиваем счетчик в соответствующей ячейке (первой или второй)
-            if ((result.get(data)==null))       // если эта дата еще не внесена
-            {
-                result.put(data, new Integer[] {0, 0, 0}); //добавляем текущую дату (ключ) и начальные счетчики:
-                                                                                                        //предрейсов
-                                                                                                        //послерейсов
-                                                                                                        //не допущ. (всегда = 0 для поликл.)
-                int predreis = getIntFromFloatString(stroka.get(3)); // значение предрейса (0 или 1)
-                int poslereis = getIntFromFloatString(stroka.get(4)); // значение послерейса (0 или 1)
-                if (predreis == 1){
-                    Integer[] v = result.get(data); //получаем значение счетчиков
-                    v[0]++;                         // и увеличиваем у предрейса
-                    result.put(data, v);            // перезаписываем счетчик
-                }
-                if (poslereis == 1){
-                    Integer[] v = result.get(data); //получаем значение счетчиков
-                    v[1]++;                         // и увеличиваем у послерейса
-                    result.put(data, v);            // перезаписываем счетчик
-                }
-            } else {       // если эта дата уже не внесена
-                int predreis = getIntFromFloatString(stroka.get(3)); // значение предрейса (0 или 1)
-                int poslereis = getIntFromFloatString(stroka.get(4)); // значение послерейса (0 или 1)
-                if (predreis == 1){
-                    Integer[] v = result.get(data); //получаем значение счетчиков
-                    v[0]++;                         // и увеличиваем у предрейса
-                    result.put(data, v);            // перезаписываем счетчик
-                }
-                if (poslereis == 1){
-                    Integer[] v = result.get(data); //получаем значение счетчиков
-                    v[1]++;                         // и увеличиваем у послерейса
-                    result.put(data, v);            // перезаписываем счетчик
-                }
-            }
-        }
-        return result;
-    }
-
-    private TreeMap<String, int[]> prepareTable2XLS (List<ArrayList<String>> spisokVes, ArrayList<Integer> alldates) {
-        //заготовка для результата
-        TreeMap<String, int[]> result = new TreeMap<>();
-        int vsegoDat = alldates.size();
-
-        // foreach
-        for (ArrayList<String> stroka : spisokVes) { //пробегаемся по строкам
-            int[] calendDates = new int[vsegoDat]; //готовим таблицу дат осмотров для каждой фамилии
-            String fio = stroka.get(2); // получаем ФИО из третьей ячейки строки
-            Integer data = Integer.parseInt(stroka.get(1)); // получаем дату из второй ячейки строки
-            int dataPosition = getDataPosition(alldates, data);
-            int predreis = getIntFromFloatString(stroka.get(3)); // значение предрейса (0 или 1)
-            int poslereis = getIntFromFloatString(stroka.get(4)); // значение послерейса (0 или 1)
-            if ((result.get(fio)==null))       // если эта фамилия еще не внесена
-            {
-                //По позиции даты в календаре alldates определяем номер ячейки, в которую пишем сумму предрейса и послерейса
-                calendDates[dataPosition] = (predreis+poslereis);
-                //добавляем фамилию (ключ) и начальные счетчики его осмотров по датам
-                result.put(fio, calendDates);
-            } else {       // если эта фамилия уже внесена
-                // получаем значения ячеек согласно календаря
-                calendDates = result.get(fio);
-                //По позиции даты в календаре alldates определяем номер ячейки, в которую добавляем сумму предрейса и послерейса
-                calendDates[dataPosition] = calendDates[dataPosition] + (predreis+poslereis);
-                //calendDates .add(Integer.valueOf(stroka.get(1)), (predreis+poslereis));
-                //добавляем фамилию (ключ) и новые счетчики его осмотров по дате
-                result.put(fio, calendDates);
-            }
-
-        }
-        return result;
     }
 
     private TreeMap<Integer, FactTable> prepareTable1(TreeMap<Integer, Integer[]> pred, TreeMap<Integer, Integer[]> posl){
@@ -1118,132 +912,6 @@ public class MainServlet extends HttpServlet {
                 res = i;
             }
         }
-        return res;
-    }
-
-    // TODO: +++ 09.09.2020 сделать возврат названия файла (чтобы передать в otchet.jsp для формирования ссылки для скачивания)
-    private String makeWordDocumentTable1(TreeMap<Integer, int[]> preparedList, String uploadFilePath, TreeMap<Integer, Float> preparedProcent) throws IOException, XmlException {
-        String copyright = "\u00a9";
-        String res = File.separator+organization+" (фактич.) ["+period.toLowerCase()+"] "
-                     + makeFileNameByDateAndTimeCreated()+".docx";
-
-        //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                                                                       + res));
-
-        //Blank Document
-        XWPFDocument document = new XWPFDocument();
-        CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
-        // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
-        XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
-        // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано "+copyright+"MDF-lab средствами Java");
-        // устанавливаем сформированный верхний
-        // колонтитул в модель документа Word
-        XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
-        headerFooterPolicy.createHeader(
-                XWPFHeaderFooterPolicy.DEFAULT,
-                new XWPFParagraph[]{headerParagraph}
-        );
-
-        //create Paragraph
-        XWPFParagraph paragraph = document.createParagraph();
-        XWPFRun run = paragraph.createRun();
-        //Set alignment paragraph to CENTER
-        paragraph.setAlignment(ParagraphAlignment.CENTER);
-        run.setFontFamily("Times New Roman");
-        run.setFontSize(14);
-        run.setText("Отчет по "+organization);                  run.addCarriageReturn();
-        run.setText("за фактически проведенные предрейсовые и");run.addCarriageReturn();
-        run.setText("послерейсовые медицинские осмотры");       run.addCarriageReturn();
-        run.setText("за "+period.toLowerCase()+" "+god+" года"); //todo: год тоже надо вытаскивать из эксель +
-        run.addCarriageReturn();
-
-        //create table
-        XWPFTable table = document.createTable();
-        table.setCellMargins(10,50,10,50);
-
-        //create first row
-        XWPFTableRow tableRowOne = table.getRow(0);
-
-        tableRowOne.getCell(0).setParagraph(fillParagraph(document, "№ п/п"));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(1).setParagraph(fillParagraph(document, "Число отчетного месяца"));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(2).setParagraph(fillParagraph(document, "Общее количество мед.осмотров"));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(3).setParagraph(fillParagraph(document, "Количество предрейсовых мед.осмотров"));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Допуск\""));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Недопуск\""));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(6).setParagraph(fillParagraph(document, "Количество послерейсовых мед.осмотров"));
-
-        tableRowOne.addNewTableCell();
-        tableRowOne.getCell(7).setParagraph(fillParagraph(document, "% невыпуска"));
-
-        //table.getRow(0).getCell(0).addParagraph();
-
-        Iterator iterator = preparedList.keySet().iterator();
-        int count = 0;          //счетчик строк таблицы
-        int countPredr = 0;     //счетчик предрейса
-        int countDopusk = 0;    //счетчик допусков
-        int countNoDopusk = 0;  //счетчик не допусков
-        int countPosler = 0;    //счетчик послерейса
-        int countMedOsm = 0;    //счетчик мед.осмотров
-        while(iterator.hasNext()) {
-            count++;
-            Integer key   =(Integer) iterator.next();
-            int[] value = preparedList.get(key);
-            countMedOsm = countMedOsm + value[0];
-            countPredr = countPredr + value[1];  //всего осмотров за этот день (допуск + не допуск)
-            countDopusk = countDopusk + value[2];
-            countNoDopusk = countNoDopusk + value[3];
-            countPosler = countPosler + value[4];
-            float procent = preparedProcent.get(key);
-
-            //create next rows
-            XWPFTableRow tableRowNext = table.createRow();
-            tableRowNext.getCell(0).setParagraph(fillParagraph(document, Integer.toString(count)));
-            tableRowNext.getCell(1).setParagraph(fillParagraph(document, Integer.toString(key)));   //день месяца
-            tableRowNext.getCell(2).setParagraph(fillParagraph(document, Integer.toString(value[0]))); //всего мед.осм.
-            tableRowNext.getCell(3).setParagraph(fillParagraph(document, Integer.toString(value[1]))); //предрейсовых.
-            tableRowNext.getCell(4).setParagraph(fillParagraph(document, Integer.toString(value[2]))); //допущ.
-            tableRowNext.getCell(5).setParagraph(fillParagraph(document, Integer.toString(value[3]))); //не допущ.
-            tableRowNext.getCell(6).setParagraph(fillParagraph(document, Integer.toString(value[4]))); //послерейсовых.
-            tableRowNext.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f", procent*100))); //%невыпуска
-        }
-
-        //добавляем последнюю строку с итоговыми счетчиками
-        XWPFTableRow tableRowLast = table.createRow();
-        tableRowLast.getCell(0).setParagraph(fillParagraph(document,"")); //№ п/п
-        tableRowLast.getCell(1).setParagraph(fillParagraph(document,"Итого:"));   //день месяца
-        tableRowLast.getCell(2).setParagraph(fillParagraph(document, Integer.toString(countMedOsm))); //всего мед.осм.
-        tableRowLast.getCell(3).setParagraph(fillParagraph(document, Integer.toString(countPredr))); //предрейс.
-        tableRowLast.getCell(4).setParagraph(fillParagraph(document, Integer.toString(countDopusk))); //допущ.
-        tableRowLast.getCell(5).setParagraph(fillParagraph(document, Integer.toString(countNoDopusk))); //не допущ.
-        tableRowLast.getCell(6).setParagraph(fillParagraph(document, Integer.toString(countPosler))); //послер.
-        tableRowLast.getCell(7).setParagraph(fillParagraph(document, String.format("%.2f", (countNoDopusk/(float)countMedOsm)*100))); //%невыпуска итоговый
-
-        //List<XWPFParagraph> allParagraphs = document.getParagraphs();
-
-        //костыль: удаляем весь мусор после таблицы - т.е. оставляем только первые два элемента документа (параграф и таблица)
-        List<IBodyElement> elements = document.getBodyElements();
-        for ( int i = elements.size()-1; i >= 2; i-- ) {
-            //System.out.println( "removing bodyElement #" + i );
-            document.removeBodyElement( i );
-        }
-
-        document.write(out); //сохраняем файл отчета в Word
-        out.close();
-        document.close();
         return res;
     }
 
@@ -2166,81 +1834,10 @@ public class MainServlet extends HttpServlet {
         return dateTimeAdded;
     }
 
-    //получение из первой строки Excel название компании
-    private String getOrganizationNameFromXLS (ArrayList<String> firsRow){
-        String res = "";
-        String row = firsRow.get(0);
-        res = row.replaceAll("\"", "");
 
-//        //разбиваем строку по пробелам
-//        String[] tempArray = row.split(" ");
-//        //собираем название организации (из последних элементов временного массива, т.е. кроме первого)
-//        for (int i=1; i<tempArray.length; i++){
-//            res = res+" "+tempArray[i].replaceAll("\"", "");
-//        }
-        return res.trim();
-    }
 
-    //получение из первой строки Excel отчетного месяца
-    private String getMonthXLS (ArrayList<String> firsRow){
-        String res = "";
-        String row = firsRow.get(0);
-        //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
-        res = tempArray[0];
-//        Locale rLocale = new Locale("ru"); //русская локаль
-//        //SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy", Locale.US);
-//        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy", rLocale);
-//        SimpleDateFormat newFormatter = new SimpleDateFormat("MMMM", rLocale);
-//
-//        try {
-//            Date date = formatter.parse(tempArray[1]);
-//            res = newFormatter.format(date);
-//
-//        } catch (ParseException e) {
-//            e.printStackTrace();
-//        }
 
-        return res.trim();
-    }
 
-    //получение из первой строки Excel отчетного месяца
-    private String getGodXLS (ArrayList<String> firsRow){
-        String res = "";
-        String row = firsRow.get(0);
-        //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
-        res = tempArray[1];
-
-//        Locale rLocale = new Locale("ru"); //русская локаль
-//        //SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy", Locale.US);
-//        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy", rLocale);
-//        SimpleDateFormat newFormatter = new SimpleDateFormat("yyyy", rLocale);
-//
-//        try {
-//            Date date = formatter.parse(tempArray[1]);
-//            res = newFormatter.format(date);
-//
-//        } catch (ParseException e) {
-//            e.printStackTrace();
-//        }
-
-        return res.trim();
-    }
-
-    //получение из первой строки Excel название таблицы
-    private String getTableName (ArrayList<String> firsRow){
-        String res = "";
-        String row = firsRow.get(0);
-
-        //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
-        //собираем название организации (без начальных и без последних четырех элементов временного массива)
-        for (int i=5; i<tempArray.length-4; i++){
-            res = res+" "+tempArray[i];
-        }
-        return res.trim();
-    }
 
     //получение из первой строки Excel название компании
     private String getOrganizationName (ArrayList<String> firsRow){
