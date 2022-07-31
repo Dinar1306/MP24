@@ -19,7 +19,7 @@
 </head>
 <body>
    <script>
-     document.title = "Начало работы";
+     document.title = "Сервис подготовки отчётов по меджурналу Medpoint24";
    </script>
 
       <div class="w3-container w3-center">
@@ -31,17 +31,33 @@
         <div class="w3-content w3-center">
           <form action="otchet" enctype="multipart/form-data" method="POST">
             <fieldset>
-                            <legend>Загрузите данные</legend>
+                            <legend>=====&nbsp;Загрузите файл и отметьте вид журнала&nbsp;=====</legend>
             				<p>Меджурнал из системы Medpoint24</p>
                             <p><input name="file" type="file" id="file" accept=".xlsx" ></p>
             				<br>
             				<!--<p>Отчет, подготовленный вручную</p>
                             <p><input name="file_p" type="file" id="file_p" accept=".xls"></p>-->
+                            <p>Вид меджурнала:</p>
+                            <table style="margin-left: auto; margin-right: auto; font-size: small;">
+                            <tbody>
+                            <tr>
+                            <td>
+                            <p><input id="radio-1" type="radio" name="radio" value="1">
+                               <label for="radio-1">из distmed.com</label></p>
+                            <p><input id="radio-2" type="radio" name="radio" value="2" checked>
+                               <label for="radio-2">из V3 (старого образца)</label></p>
+                            <p><input id="radio-3" type="radio" name="radio" value="3">
+                               <label for="radio-3">из V3</label></p>
+                            </td>
+                            </tr>
+                            </tbody>
+                            </table>
+
             </fieldset>
             <p><button type="submit" >Сформировать</button></p>
             <p>Отчеты, сформированные ранее, доступны <a href="list">здесь</a>.</p>
             <br>
-            <p><a href="/resources/04-2021-primer.xlsx" target="_blank">Скачать</a> пример выгрузки меджурнала (для оценки формируемых отчётов).</p>
+            <p><a href="/resources/04-2021-primer.xlsx" target="_blank">Скачать</a> пример выгрузки меджурнала из distmed.com (для оценки формируемых отчётов).</p>
           </form>
         </div>
                       <br>

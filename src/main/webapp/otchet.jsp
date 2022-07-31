@@ -154,7 +154,7 @@
 
         <br><br>
         <p align="center">==============================================</p>
-        <a class="w3-button w3-ripple w3-teal" href="./" >Ещё разок</a>
+        <a class="w3-button w3-ripple w3-teal" href="./" >Повторить</a>
     </center>
     <br>
 

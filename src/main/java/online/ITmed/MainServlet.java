@@ -1,5 +1,6 @@
-package ru.rkb2ufa;
+package online.ITmed;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;   //для xls
@@ -28,6 +29,9 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -51,10 +55,9 @@ public class MainServlet extends HttpServlet {
     private int errorStringNumber;
     private String debug = "";
     private String message = "";
-    private int chisloMO = 0; //общее число медосмотров из трех списков(предр, послер и линейный)
-    private int chisloPredr = 0; //общее число предр.медосмотров
-    private int chisloPosler = 0; //общее число послер.медосмотров
-    private int chisloLine = 0; //общее число линейн.медосмотров
+    private String[] radiobutton; //вид меджурнала
+    //private int radio; //значение переключателя (1-2-3)
+
 
     private class FactTable {
         int obscheeChisloMO;
@@ -215,7 +218,7 @@ public class MainServlet extends HttpServlet {
         List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listLine = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listPosleAndLine = new ArrayList<>(); // для объединения послерейса и линейного
-        List<ArrayList<String>> listP = new ArrayList<>();    // массив строк листа (каждая строка - массив строк) для поликлиники
+        List<ArrayList<String>> listPredreis = new ArrayList<>();    // массив строк листа (каждая строка - массив строк) для списка предрейсовых осмотров
         TreeMap<Integer, Integer[]> medOsmotryByDatesPredReis = new TreeMap<Integer, Integer[]>(); //итоговые данные отсортированы по дате
         //т.е. здесть Integer Key - дата мед.осм.
         //Integer[] Value - таблица допущено / не допущено (в эту дату)
@@ -228,15 +231,19 @@ public class MainServlet extends HttpServlet {
         //т.е. здесть Integer Key - дата мед.осм.
         //int[] Value - таблица: общ.кол|предр|допущ|недоущ|послер| (в эту дату) --> добавить столбец %невыпуска
 
+        int chisloMO = 0; //общее число медосмотров из трех списков(предр, послер и линейный)
+        int chisloPredr = 0; //общее число предр.медосмотров
+        int chisloPosler = 0; //общее число послер.медосмотров
+        int chisloLine = 0; //общее число линейн.медосмотров
 
         //Массив дат медосмотров (для Табл.№2)
         ArrayList<Integer> dates = new ArrayList<>();
 
         //итоговые данные отсортированы по фамилиям и дате
         TreeMap<String, int[]> medOsmotryByFIOXLS;
-        TreeMap<String, int[]> medOsmotryByFIO;
-        TreeMap<String, int[]> medRabotnikByFIO;
-        TreeMap<String, int[]> medOsmByHost;
+        TreeMap<String, int[]> medOsmotryByFIO = new TreeMap<String, int[]>();
+        TreeMap<String, int[]> medRabotnikByFIO = new TreeMap<String, int[]>();
+        TreeMap<String, int[]> medOsmByHost = new TreeMap<String, int[]>();
         TreeMap<String, int[]> medOsmByNepoduski;
         // здесь key   это ФИО водителя - String
         // здесь value это таблица с суммарным значением предрейса и послерейса в каждой ячейке,
@@ -252,10 +259,14 @@ public class MainServlet extends HttpServlet {
         //Part part_p = request.getPart("file_p");
         //long size_p = part_p.getSize(); // файл поликлиники
 
+        //получаем radiobutton (вид меджурнала: 1 - из дистмед, 2 - старый из V3, 3 - из V3)
+        radiobutton = request.getParameterValues("radio");
+
+
         //проверям загруженли файл меджурнала:
         //ничего
         if (size == 0){
-            request.setAttribute("message", "Не загружен файл меджурнала :(");
+            request.setAttribute("message", "Загрузите файл меджурнала!");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
             requestDispatcher.forward(request, response);
             return;
@@ -264,67 +275,166 @@ public class MainServlet extends HttpServlet {
         else {
             //получаем объект книги XLSX из формы
             workBookXLSX = XLSXFromPart(part);
-            //разбираем первый лист файла medpoint24 на объектную модель
-            list = getListFromSheet(workBookXLSX, 0); //получаем лист предрейса
-            listPosleReis = getListFromSheet(workBookXLSX, 1); //получаем лист послерейса
-            listLine = getListFromSheet(workBookXLSX, 5); //получаем лист линейного
-            ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
 
-            try {
-                organization = getOrganizationName_v2(pervayaStroka); //достаем из первой строки (заголовка) название компании.
-                period = getMonth_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
-                god = getGod_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            //выбираем вид меджурнала
+            int radio = Integer.parseInt(radiobutton[0]); //значение переключателя (1-2-3)
+            switch (radio){
+                case 1 : {
+                    try {
+                        //разбираем первый лист файла medpoint24 на объектную модель
+                        listPredreis = getListFromSheet(workBookXLSX, 0); //получаем лист предрейса
+                        listPosleReis = getListFromSheet(workBookXLSX, 1); //получаем лист послерейса
+                        listLine = getListFromSheet(workBookXLSX, 5); //получаем лист линейного
+                        ArrayList<String> pervayaStroka = listPredreis.get(0); //первая строка (заголовок)
+                        organization = getOrganizationName_v2(pervayaStroka); //достаем из первой строки (заголовка) название компании.
+                        period = getMonth_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
+                        god = getGod_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        request.setAttribute("message", "При обработке файла произошла ошибка.");
+                        request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                        RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                        requestDispatcher.forward(request, response);
+                        return;
+                    }
 
-            //Причесываем списки:
-            // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 5 и 7 ненужных строк из предрейса и послерейса соответственно
-            list = list.subList(2, list.size()-5);
-            listPosleReis = listPosleReis.subList(2, listPosleReis.size()-7);
-            //причесываем линейный
-            listLine = listLine.subList(2, listLine.size()-5);
+                    //Причесываем списки:
+                    // убираем заголовок таблицы, убираем шапку таблицы, убирем последние 5 и 7 ненужных строк из предрейса и послерейса соответственно
+                    listPredreis = listPredreis.subList(2, listPredreis.size()-5);
+                    listPosleReis = listPosleReis.subList(2, listPosleReis.size()-7);
+                    //причесываем линейный
+                    listLine = listLine.subList(2, listLine.size()-5);
 
-            //считаем общее число медосмотров
-            if (!list.isEmpty()) {
-                chisloPredr = list.size();
-                chisloMO = chisloMO + list.size();
-            }
-            if (!listPosleReis.isEmpty()){
-                chisloPosler = listPosleReis.size();
-                chisloMO = chisloMO + listPosleReis.size();
-            }
-            if (!listLine.isEmpty()){
-                chisloLine = listLine.size();
-                chisloMO = chisloMO + listLine.size();
-            }
+                    //считаем общее число медосмотров
+                    if (!listPredreis.isEmpty()) {
+                        chisloPredr = listPredreis.size();
+                        chisloMO = chisloMO + chisloPredr;
+                    }
+                    if (!listPosleReis.isEmpty()){
+                        chisloPosler = listPosleReis.size();
+                        chisloMO = chisloMO + chisloPosler;
+                    }
+                    if (!listLine.isEmpty()){
+                        chisloLine = listLine.size();
+                        chisloMO = chisloMO + chisloLine;
+                    }
 
-            ////соединяем послерейс и линейные МО
-            //Объединение двух списков в третий:
-            //result.addAll(list1);
-            //result.addAll(list2);
-            listPosleAndLine.addAll(listPosleReis);
-            listPosleAndLine.addAll(listLine);
+                    ////соединяем послерейс и линейные МО
+                    //Объединение двух списков в третий:
+                    listPosleAndLine.addAll(listPosleReis);
+                    listPosleAndLine.addAll(listLine);
+
+
+                    /*
+                    //производим подсчёт по предрейсовым
+                    medOsmotryByDatesPredReis = prepare(list);
+
+                    //производим подсчёт по послерейсовым (старый вариант)
+                    //medOsmotryByDatesPosleReis = prepare(listPosleReis); //старый вариант
+                    //производим подсчёт по объединенному послерейсу и линейному (новый вариант)
+                    medOsmotryByDatesPosleReis = prepare(listPosleAndLine); //новый вариант
+
+                    //производим подсчёт по линейным
+                    //medOsmotryByDatesLine = prepare(listLine);
+
+
+
+                    // (Табл.1 Фактические медосмотры)
+                    medOsmotryByDatesFacticheskie = prepareTable1(medOsmotryByDatesPredReis, medOsmotryByDatesPosleReis);
+
+                    // считаем проценты недопусков в табл.1
+                    for (Map.Entry<Integer, FactTable> entry: medOsmotryByDatesFacticheskie.entrySet()) {
+                        entry.getValue().setProcentNedopuska();
+                    }
+
+                    //получаем массив дат
+                    //for ( Integer keys:medOsmotryByDatesALL.keySet() ) {
+                    for ( Integer keys:medOsmotryByDatesFacticheskie.keySet() ) {
+                        dates.add(keys);
+                    }
+                    // (Табл.2 Детализация, по водителям) предрейс+послерейс, нужен 6й столбец
+                    medOsmotryByFIO = prepareTable2(list, listPosleAndLine, dates, 6);
+
+                    // (Табл.3 Детализация, по медсестрам) предрейс+послерейс, нужен 18й столбец
+                    medRabotnikByFIO = prepareTable2(list, listPosleAndLine, dates, 18);
+
+                    // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
+                    medOsmByHost = prepareTable2(list, listPosleAndLine, dates, 4);
+
+                    // (Табл.7 Группы риска)
+                   try {
+                        gruppyRiskaByFIO = prepareTableGruppyRiska(list, listPosleAndLine);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        request.setAttribute("message", "При обработке файла произошла ошибка.");
+                        request.setAttribute("debug", e.getLocalizedMessage());
+                        RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                        requestDispatcher.forward(request, response);
+                        return;
+                    }*/
+                    break;
+                } /////////////case 1
+                case 2 : {
+                    try {
+                        //разбираем первый(единственный) лист файла medpoint24 на объектную модель
+                        list = getListFromSheet(workBookXLSX, 0); //получаем лист всех видов осмотра
+                        //listPosleReis = getListFromSheet(workBookXLSX, 1); //получаем лист послерейса
+                        //listLine = getListFromSheet(workBookXLSX, 5); //получаем лист линейного
+                        ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
+                        organization = getOrganizationName(pervayaStroka); //достаем из первой строки (заголовка) название компании.
+                        period = getMonth_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
+                        god = getGod_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        request.setAttribute("message", "При обработке файла произошла ошибка.");
+                        request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                        RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                        requestDispatcher.forward(request, response);
+                        return;
+                    }
+                    //Причесываем списки:
+                    // убираем заголовок таблицы, убираем шапку и последние 3 ненужные строки
+                    list = list.subList(2, list.size()-3); //общий список со всеми видами осмотров
+                    //считаем общее число медосмотров
+                    if (!list.isEmpty()) {
+                        chisloMO = list.size();
+                    }
+                    //получаем список предрейса
+                    listPredreis = getPredreisList(list);
+                    listPosleReis = getPoslereisList(list);
+                    listLine = getLineList(list);
+
+                    if (!listPosleReis.isEmpty()){
+                        chisloPosler = listPosleReis.size();
+                    }
+                    if (!listLine.isEmpty()){
+                        chisloLine = listLine.size();
+                    }
+
+                    ////соединяем послерейс и линейные МО
+                    //Объединение двух списков в третий:
+                    listPosleAndLine.addAll(listPosleReis);
+                    listPosleAndLine.addAll(listLine);
+
+                    break;
+                } /////////////case 2
+                case 3 : {
+                    break;
+                } /////////////case 3
+            }
 
             //производим подсчёт по предрейсовым
-            medOsmotryByDatesPredReis = prepare(list);
+            medOsmotryByDatesPredReis = prepare(listPredreis);
 
-            //производим подсчёт по послерейсовым (старый вариант)
-            //medOsmotryByDatesPosleReis = prepare(listPosleReis); //старый вариант
             //производим подсчёт по объединенному послерейсу и линейному (новый вариант)
             medOsmotryByDatesPosleReis = prepare(listPosleAndLine); //новый вариант
-
-            //производим подсчёт по линейным
-            //medOsmotryByDatesLine = prepare(listLine);
-
-
 
             // (Табл.1 Фактические медосмотры)
             medOsmotryByDatesFacticheskie = prepareTable1(medOsmotryByDatesPredReis, medOsmotryByDatesPosleReis);
 
             // считаем проценты недопусков в табл.1
             for (Map.Entry<Integer, FactTable> entry: medOsmotryByDatesFacticheskie.entrySet()) {
-               entry.getValue().setProcentNedopuska();
+                entry.getValue().setProcentNedopuska();
             }
 
             //получаем массив дат
@@ -333,19 +443,24 @@ public class MainServlet extends HttpServlet {
                 dates.add(keys);
             }
             // (Табл.2 Детализация, по водителям) предрейс+послерейс, нужен 6й столбец
-            medOsmotryByFIO = prepareTable2(list, listPosleAndLine, dates, 6);
+            medOsmotryByFIO = prepareTable2(listPredreis, listPosleAndLine, dates, 6);
 
             // (Табл.3 Детализация, по медсестрам) предрейс+послерейс, нужен 18й столбец
-            medRabotnikByFIO = prepareTable2(list, listPosleAndLine, dates, 18);
+            medRabotnikByFIO = prepareTable2(listPredreis, listPosleAndLine, dates, 18);
 
             // (Табл.4 Детализация, по точкам) предрейс+послерейс, нужен 4й столбец
-            medOsmByHost = prepareTable2(list, listPosleAndLine, dates, 4);
+            medOsmByHost = prepareTable2(listPredreis, listPosleAndLine, dates, 4);
 
             // (Табл.7 Группы риска)
             try {
-                gruppyRiskaByFIO = prepareTableGruppyRiska(list, listPosleAndLine);
+                gruppyRiskaByFIO = prepareTableGruppyRiska(listPredreis, listPosleAndLine);
             } catch (Exception e) {
                 e.printStackTrace();
+                request.setAttribute("message", "При обработке файла произошла ошибка.");
+                request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                requestDispatcher.forward(request, response);
+                return;
             }
 
             // gets absolute path of the web application
@@ -374,19 +489,29 @@ public class MainServlet extends HttpServlet {
                 table4FileName = makeWordDocumentTable2XLS("точки осм.", dates, medOsmByHost, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table5FileName)
-                table5FileName = makeWordDocumentReestr(list, listPosleReis, listLine, uploadFilePath);
+                table5FileName = makeWordDocumentReestr(listPredreis, listPosleReis, listLine, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
-                table6FileName = makeWordDocumentStatNedopuskov(list, listPosleAndLine, uploadFilePath);
+                table6FileName = makeWordDocumentStatNedopuskov(listPredreis, listPosleAndLine, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table7FileName)
                 table7FileName = makeWordDocumentGruppaRiska(gruppyRiskaByFIO, uploadFilePath);
 
             } catch (XmlException e) {
                 e.printStackTrace();
+                request.setAttribute("message", "При обработке файла произошла ошибка.");
+                request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                requestDispatcher.forward(request, response);
+                return;
                 //response.setContentType("text/html");
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                request.setAttribute("message", "При обработке файла произошла ошибка.");
+                request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                requestDispatcher.forward(request, response);
+                return;
             }
 
             response.setContentType("text/html");
@@ -400,7 +525,7 @@ public class MainServlet extends HttpServlet {
             request.setAttribute("docx6Name", table6FileName);
             request.setAttribute("docx7Name", table7FileName);
             request.setAttribute("reportsDir", REPORTS_DIR);
-            request.setAttribute("message", "Отчёты по меджурналу Medpoint24 сформированы успешно!");
+            request.setAttribute("message", "Отчёты сформированы успешно!");
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
             requestDispatcher.forward(request, response);
             return;
@@ -409,10 +534,107 @@ public class MainServlet extends HttpServlet {
     }
 
 
+
     ////////////////////////////////////////////////////////////////////////
     //                      ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ                        //
     ////////////////////////////////////////////////////////////////////////
 
+    //получаем список предрейсовых медосмотров
+    private List<ArrayList<String>> getPredreisList(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        for (ArrayList strArr: list ) {
+            if (strArr.get(7).equals("Предрейсовый осмотр")){
+                res.add(strArr);
+            }
+        }
+        return convertToOldFormat(res);
+    }
+
+    private List<ArrayList<String>> getPoslereisList(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        for (ArrayList strArr: list ) {
+            if (strArr.get(7).equals("Послерейсовый осмотр")){
+                res.add(strArr);
+            }
+        }
+        return convertToOldFormat(res);
+    }
+
+    private List<ArrayList<String>> getLineList(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        for (ArrayList strArr: list ) {
+            if (strArr.get(7).equals("Линейный осмотр")){
+                res.add(strArr);
+            }
+        }
+        return convertToOldFormat(res);
+    }
+
+    private List<ArrayList<String>> convertToOldFormat(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        ArrayList<String> converted = new ArrayList<>();
+        String zakl = "";
+        for (ArrayList<String> strArr: list ) {
+            converted.add(0, strArr.get(0)); // № п/п
+            converted.add(1, convertDate(strArr.get(1))); //Дата и время осмотра
+            converted.add(2, strArr.get(2)); // Длительность осмотра (на терминале)
+            converted.add(3, strArr.get(7)); // Тип осмотра
+            converted.add(4, strArr.get(19)); // Место осмотра
+            converted.add(5, strArr.get(6)); // Табельный номер
+            converted.add(6, strArr.get(3)); // ФИО работника
+            converted.add(7, strArr.get(4)); // Пол
+            converted.add(8, convertBD(strArr.get(5))); // Дата рождения
+            converted.add(9, strArr.get(12));  // Жалобы
+            converted.add(10, "пусто"); // Осмотр
+            converted.add(11, strArr.get(8)); // АД
+            converted.add(12, strArr.get(9)); // ЧСС
+            converted.add(13, strArr.get(11)); // температура
+            converted.add(14, strArr.get(10)); // Проба на наличие алкоголя
+            if (strArr.get(14).equals("Допущен")||strArr.get(14).equals("Прошёл")) zakl = "О"; else zakl = "Н";
+            converted.add(15, zakl); // Заключение (Н или О)*
+            converted.add(16, strArr.get(14)); // Результат
+            converted.add(17, strArr.get(15)); // Комментарий
+            converted.add(18, strArr.get(16)); // ФИО медицинского работника
+            converted.add(19, strArr.get(17)); // Подпись медицинского работника
+            converted.add(20, strArr.get(18)); // Подпись работника
+
+            //конвертировано, добавляем (кроме незавершенных)
+            if (!converted.get(17).equals("Незавершенный осмотр.")){
+                res.add((ArrayList<String>)converted.clone());
+            }
+            converted.clear();
+        }
+        return res;
+    }
+
+    //конвертирование даты с "29.07.2022 15:27:46" на "2022-07-29 15:27"
+    private String convertDate (String s){
+        String res = "";
+        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+        SimpleDateFormat newFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        //newFormatter.setTimeZone(TimeZone.getTimeZone("UTC+5")); //перевод на местное время
+        try {
+            Date date = formatter.parse(s);
+            ZonedDateTime d = ZonedDateTime.ofInstant(date.toInstant(),  ZoneId.systemDefault()); //не важно какой часовой пояс, т.к. ко времени из
+            // журнала надо прибавить два часа (в журнале московское время)
+            LocalDateTime ldt = d.toLocalDateTime();
+            ldt = ldt.plusHours(2); //+2 часа к московскому времени из журнала
+            res = newFormatter.format(Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant()));
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return res;
+    }
+
+    //конвертирование даты рождения с "29.07.2022" на "2022-07-29"
+    private String convertBD (String s){
+        String res = "";
+        String[] tempArray = s.split("-");
+        res=tempArray[2]+"-"+tempArray[1]+"-"+tempArray[0];
+        return res;
+    }
 
     //получаем объект книги xlsx
     private XSSFWorkbook XLSXFromPart(Part part){
@@ -557,7 +779,7 @@ public class MainServlet extends HttpServlet {
 
             //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
             switch (stroka.get(16)){ //было 15
-                case "Допущен":
+                case "Допущен" :
                     //нашлелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
                     {
@@ -576,6 +798,17 @@ public class MainServlet extends HttpServlet {
                     } else {
                         Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
                         v[1]++;                         // и увеличиваем
+                        result.put(data, v);            // перезаписываем счетчик
+                    }
+                    break;
+                case "Прошёл":
+                    //нашлелся допуск -> увеличиваем значение в первой ячейке
+                    if ((result.get(data)==null))       // если эта дата еще не внесена
+                    {
+                        result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                    } else {
+                        Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                        v[0]++;                         // и увеличиваем
                         result.put(data, v);            // перезаписываем счетчик
                     }
                     break;
@@ -826,20 +1059,23 @@ public class MainServlet extends HttpServlet {
                 //temp.setDataRojdeniya(zapis.get(8)); //дата рожд.
                 temp.setOsmotrovVsego(1); //начальное значение общего числа осмотров по данному сотруднику
 
-                if (daNet.equals("Не допущен")){
+               // if (daNet.equals("Не допущен")){
                     vidNedopuska = zapis.get(17).trim();
                     if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС")))  { //недопуск по мед.причинам
                         temp.setNedopuskov(1);    //начальное значение числа недопусков
                         temp.setDopuskov(0);      //начальное значение числа допусков
                     }
-                } else { //допущен
+                /*}*/ else { //допущен
                     temp.setNedopuskov(0);    //начальное значение числа недопусков
                     temp.setDopuskov(1);      //начальное значение числа допусков
                 }
 
-                temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
-                temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
-                temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+                // Незавершенный осмотр не учитывается
+                if (!vidNedopuska.contains("Незавершенный осмотр.")){
+                    temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
+                    temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
+                    temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+                }
 
                 //добавляем фамилию (ключ) и начальные счетчики его осмотра
                 result.put(FIO, temp);
@@ -851,18 +1087,22 @@ public class MainServlet extends HttpServlet {
                 String[] bloodPressure = zapis.get(11).trim().split("/"); //[0]-САД [1]-ДАД
                 temp.setOsmotrovVsego(temp.getOsmotrovVsego()+1); //обновляем значение общего числа осмотров по данному сотруднику
 
-                if (daNet.equals("Не допущен")){
+               // if (daNet.equals("Не допущен")){
                     vidNedopuska = zapis.get(17).trim();
                     if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС")))  { //недопуск по мед.причинам
                         temp.setNedopuskov(temp.getNedopuskov()+1);    //увеличиваем значение числа недопусков
                     }
-                } else { //допущен
+               /* }*/ else { //допущен
                     temp.setDopuskov(temp.getDopuskov()+1);      //увеличиваем значение числа допусков
                 }
 
-                temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
-                temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
-                temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+                // Незавершенный осмотр не учитывается
+                if (!vidNedopuska.contains("Незавершенный осмотр.")){
+                    temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
+                    temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
+                    temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
+                }
+
 
                 //добавляем фамилию (ключ) и новые счетчики его осмотрa
                 result.put(FIO, temp);
@@ -1320,13 +1560,13 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(12);
         //run.setBold(true);
-        run.setText("Группы риска");   run.addCarriageReturn();
+        run.setText("Группы риска по артериальному давлению и пульсу");   run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" "+god+" года");
 
-        if (riskGroup==null){
+        if (riskGroup.isEmpty()){
             run.addCarriageReturn();
             run.addCarriageReturn();
-            run.setText("Группы риска не сформированы, т.к. отсутствуют сотрудники с 3 и более осмотрами.");
+            run.setText("Группы риска не сформированы, т.к. отсутствуют сотрудники, имеющие от 20% недопусков на основании не менее трёх осмотров");
         } else {
             //подготовка форматирования ячеек
             XWPFParagraph paragraphTableCell = document.createParagraph();
@@ -1371,11 +1611,11 @@ public class MainServlet extends HttpServlet {
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(5).setParagraph(paragraphTableCell);
-            tableRowOne.getCell(5).setText("Допуски");
+            tableRowOne.getCell(5).setText("Медицинские показатели: норма");
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(6).setParagraph(paragraphTableCell);
-            tableRowOne.getCell(6).setText("Недопуски по мед. причинам");
+            tableRowOne.getCell(6).setText("Медицинские показатели: вне нормы");
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(7).setParagraph(paragraphTableCell);
@@ -1799,14 +2039,14 @@ public class MainServlet extends HttpServlet {
         }
         if (!posle.isEmpty()) {
             for (ArrayList<String> st1 : posle) {
-                if (st1.get(16).equals("Допущен")) {
+                if (st1.get(16).equals("Допущен") | st1.get(16).equals("Прошёл")) {
                     res++;
                 }
             }
         }
         if (!line.isEmpty()) {
             for (ArrayList<String> st2 : line) {
-                if (st2.get(16).equals("Допущен")) {
+                if (st2.get(16).equals("Допущен") | st2.get(16).equals("Прошёл")) {
                     res++;
                 }
             }
@@ -2031,12 +2271,22 @@ public class MainServlet extends HttpServlet {
     }
 
     //получение из первой строки Excel отчетного месяца
-    private String getMonth (ArrayList<String> firsRow){
+    private String getMonth_v3 (ArrayList<String> firsRow){
         String res = "";
         String row = firsRow.get(0);
         //разбиваем строку по пробелам
         String[] tempArray = row.split(" ");
-        res = tempArray[tempArray.length-3];
+        Locale rLocale = new Locale("ru"); //русская локаль
+        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy", rLocale);
+        SimpleDateFormat newFormatter = new SimpleDateFormat("MMMM", rLocale);
+
+        try {
+            Date date = formatter.parse(tempArray[tempArray.length-1]);
+            res = newFormatter.format(date);
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
         return res.trim();
     }
 
@@ -2061,12 +2311,14 @@ public class MainServlet extends HttpServlet {
     }
 
     //получение из первой строки Excel года
-    private String getGod (ArrayList<String> firsRow){
+    private String getGod_v3 (ArrayList<String> firsRow){
         String res = "";
         String row = firsRow.get(0);
         //разбиваем строку по пробелам
         String[] tempArray = row.split(" ");
-        res = tempArray[tempArray.length-2];
+        String temp = tempArray[tempArray.length-1];
+        String[] tempos = temp.split("\\.");
+        res = tempos[2];
         return res.trim();
     }
 

@@ -1,5 +1,5 @@
 <%@page import="java.util.ArrayList"%>
-<%@page import="ru.rkb2ufa.ReportsTable"%>
+<%@page import="online.ITmed.ReportsTable"%>
 <%@page import="java.util.List"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@ taglib prefix="display" uri="http://displaytag.sf.net" %>

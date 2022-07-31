@@ -1,10 +1,8 @@
-package ru.rkb2ufa;
+package online.ITmed;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-
-import static ru.rkb2ufa.MainServlet.REPORTS_DIR;
 
 public class ReportsTable {
 
@@ -67,7 +65,7 @@ public class ReportsTable {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        return "<a href=\"."+ File.separator + REPORTS_DIR + File.separator + fName +"\" download=\"\"><button>Cкачать</button></a>";
+        return "<a href=\"."+ File.separator + MainServlet.REPORTS_DIR + File.separator + fName +"\" download=\"\"><button>Cкачать</button></a>";
     }
 
     String orgName;

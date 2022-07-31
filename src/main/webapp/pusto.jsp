@@ -22,7 +22,7 @@
                 <%
                    String debug = (String)request.getAttribute("debug");
                    if (!(debug==null)){
-                        out.println("<h0>Служебная информация: </h0>"+debug);
+                        out.println("<h0><b>Служебная информация: </b></h0>" + System.lineSeparator() + debug);
                    }
 
                 %>

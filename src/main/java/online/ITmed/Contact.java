@@ -1,4 +1,4 @@
-package ru.rkb2ufa;
+package online.ITmed;
 
 public class Contact {
     public Contact(String name, int contact, String city) {

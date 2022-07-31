@@ -7,7 +7,7 @@
 
     <servlet>
         <servlet-name>MainServlet</servlet-name>
-        <servlet-class>ru.rkb2ufa.MainServlet</servlet-class>
+        <servlet-class>online.ITmed.MainServlet</servlet-class>
     </servlet>
 
     <servlet-mapping>
