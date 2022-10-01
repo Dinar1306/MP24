@@ -25,10 +25,7 @@ import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -53,6 +50,7 @@ public class MainServlet extends HttpServlet {
     private String message = "";
     private String[] radiobutton; //вид меджурнала
     //private int radio; //значение переключателя (1-2-3)
+    private ArrayList<Integer> allVozrasts = new ArrayList<>(); //таблица возрастов всех водителей
 
 
     private class FactTable {
@@ -487,7 +485,7 @@ public class MainServlet extends HttpServlet {
     private List<ArrayList<String>> getPredreisList(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
         for (ArrayList strArr: list ) {
-            if (strArr.get(7).equals("Предрейсовый осмотр")){
+            if ((strArr.get(7).equals("Предрейсовый осмотр"))|(strArr.get(7).equals("Предсменный осмотр"))){
                 res.add(strArr);
             }
         }
@@ -497,7 +495,7 @@ public class MainServlet extends HttpServlet {
     private List<ArrayList<String>> getPoslereisList(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
         for (ArrayList strArr: list ) {
-            if (strArr.get(7).equals("Послерейсовый осмотр")){
+            if ((strArr.get(7).equals("Послерейсовый осмотр"))|(strArr.get(7).equals("Послесменный осмотр"))){
                 res.add(strArr);
             }
         }
@@ -542,8 +540,8 @@ public class MainServlet extends HttpServlet {
             converted.add(19, strArr.get(17)); // Подпись медицинского работника
             converted.add(20, strArr.get(18)); // Подпись работника
 
-            //конвертировано, добавляем (кроме незавершенных)
-            if (!converted.get(17).equals("Незавершенный осмотр.")){
+            //конвертировано, добавляем (кроме закрытых ботом)
+            if (!converted.get(18).contains("Бот оповещения")){
                 res.add((ArrayList<String>)converted.clone());
             }
             converted.clear();
@@ -653,7 +651,7 @@ public class MainServlet extends HttpServlet {
             //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
             switch (stroka.get(16)){ //было 15
                 case "Допущен" :
-                    //нашлелся допуск -> увеличиваем значение в первой ячейке
+                    //нашелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
                     {
                         result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
@@ -664,7 +662,7 @@ public class MainServlet extends HttpServlet {
                     }
                     break;
                 case "Не допущен":
-                    //нашлелся Не допуск -> увеличиваем значение во второй ячейке
+                    //нашелся Не допуск -> увеличиваем значение во второй ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
                     {
                         result.put(data, new Integer[] {0, 1}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
@@ -675,7 +673,7 @@ public class MainServlet extends HttpServlet {
                     }
                     break;
                 case "Прошёл":
-                    //нашлелся допуск -> увеличиваем значение в первой ячейке
+                    //нашелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
                     {
                         result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
@@ -1398,8 +1396,8 @@ public class MainServlet extends HttpServlet {
         XWPFRun runText = paragraphText.createRun();
         runText.setFontFamily("Times New Roman");
         runText.setFontSize(11);
-        runText.setText("Всего недопусков: "+itog[1]+" ("+String.format("%.2f", (itog[1]/(float)itog[0])*100)+"% от всех осмотров)");   runText.addCarriageReturn();
-        runText.setText("в т.ч. по мед.причинам: "+itog[2]+" ("+String.format("%.2f", (itog[2]/(float)itog[0])*100)+"% от всех осмотров)");   //run.addCarriageReturn();
+        runText.setText("Всего недопусков: "+itog[1]+" ("+String.format("%.1f", (itog[1]/(float)itog[0])*100)+"% от всех осмотров)");   runText.addCarriageReturn();
+        runText.setText("в т.ч. по мед.причинам: "+itog[2]+" ("+String.format("%.1f", (itog[2]/(float)itog[0])*100)+"% от всех осмотров)");   //run.addCarriageReturn();
 
         document.write(out); //сохраняем файл отчета в Word
         out.close();
@@ -1455,11 +1453,11 @@ public class MainServlet extends HttpServlet {
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(2).setParagraph(par1);
-        tableRowOne.getCell(2).setText("Количество недопусков");
+        tableRowOne.getCell(2).setText("Количество не допусков");
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(3).setParagraph(par1);
-        tableRowOne.getCell(3).setText("% от всех недопусков");
+        tableRowOne.getCell(3).setText("% от всех не допусков");
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(4).setParagraph(par1);
@@ -1477,7 +1475,7 @@ public class MainServlet extends HttpServlet {
             tableRowNext.getCell(2).setParagraph(par1);
             tableRowNext.getCell(2).setText(Integer.toString(num));    // Количество недопусков данного вида
             tableRowNext.getCell(3).setParagraph(par1);
-            tableRowNext.getCell(3).setText(String.format("%.2f", (num/(float)chisloNedopuskov)*100));    // % от всех недопусков
+            tableRowNext.getCell(3).setText(String.format("%.1f", (num/(float)chisloNedopuskov)*100));    // % от всех недопусков
             tableRowNext.getCell(4).setParagraph(par1);
             tableRowNext.getCell(4).setText(String.format("%.2f", (num/(float)vsegoMO)*100));             // % от всех осмотров
         }
@@ -1507,6 +1505,7 @@ public class MainServlet extends HttpServlet {
         int nedopuskov = /*countNedopusk(pred, posle, line);*/ vsegoOsm-dopuskov;
         float procentNedopuskov = nedopuskov/(float)vsegoOsm;
         int chisloVoditelei = countVod(pred, posle, line); //ОК
+        float srednVozrast = summaVosrastov()/(float)chisloVoditelei;
         int before = 0;
         int after = 0;
         int regular = 0;
@@ -1516,8 +1515,8 @@ public class MainServlet extends HttpServlet {
         //int tablesCounter = 0; //счетчик номеров таблиц
         int [] tablesCounter = new int [1]; //счетчик номеров таблиц
         String fraza1 = "Всего осмотров: "+vsegoOsm+", в т.ч. предрейсовых – "+before;
-        String fraza2 = "Допусков, всего – "+dopuskov+", не допусков – "+nedopuskov+", что составило "+String.format("%.2f", procentNedopuskov*100)+"% от общего числа медосмотров.";
-        String fraza3 = "Всего осмотрено сотрудников: "+chisloVoditelei+" чел.";
+        String fraza2 = "Допусков, всего – "+dopuskov+", не допусков – "+nedopuskov+", что составило "+String.format("%.1f", procentNedopuskov*100)+"% от общего числа медосмотров.";
+        String fraza3 = "Всего осмотрено сотрудников: "+chisloVoditelei+" чел., средний возраст по группе: "+String.format("%.1f",srednVozrast)+" лет.";
         String dobavka ="";
         if (after>0) dobavka = dobavka+", послерейсовых – "+after;
         if (regular>0) dobavka = dobavka+", линейных – "+regular;
@@ -1548,7 +1547,8 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(12);
         run.setBold(true);
-        run.setText("Отчет по медицинским осмотрам сотрудников "+organization);   run.addCarriageReturn();
+        run.setText("Отчет по медицинским осмотрам сотрудников");   run.addCarriageReturn();
+        run.setText(organization);   run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" "+god+" года");            //run.addCarriageReturn();
 
         XWPFParagraph paragraphText = document.createParagraph();
@@ -1665,22 +1665,42 @@ public class MainServlet extends HttpServlet {
         Set<String> Voditeli = new HashSet<>();
         if (!pred.isEmpty()){
             for (ArrayList<String> st0: pred) {
-                Voditeli.add(st0.get(6));
+                boolean isAdded = Voditeli.add(st0.get(6));
+                if (isAdded) {
+                    int vozrast = countDriversAge(st0.get(8));
+                    allVozrasts.add(vozrast);
+                }
             }
         }
         if (!posle.isEmpty()){
             for (ArrayList<String> st1: posle) {
-                Voditeli.add(st1.get(6));
+                boolean isAdded = Voditeli.add(st1.get(6));
+                if (isAdded) {
+                    int vozrast = countDriversAge(st1.get(8));
+                    allVozrasts.add(vozrast);
+                }
             }
         }
         if (!line.isEmpty()){
             for (ArrayList<String> st2: line) {
-                Voditeli.add(st2.get(6));
+                boolean isAdded = Voditeli.add(st2.get(6));
+                if (isAdded) {
+                    int vozrast = countDriversAge(st2.get(8));
+                    allVozrasts.add(vozrast);
+                }
             }
         }
         res = Voditeli.size();
         return res;
     }
+
+    private int summaVosrastov(){
+        int res = 0;
+        for (Integer vozrast : allVozrasts) {
+            res = res + vozrast;
+        }
+        return res;
+    };
 
     private int countOsm(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
         int res = 0;
@@ -1722,29 +1742,29 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
-    private int countNedopusk(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+    private int countDriversAge(String st) {
         int res = 0;
-        if (!pred.isEmpty()){
-            for (ArrayList<String> st0: pred) {
-                if (st0.get(16).equals("Не допущен")){
-                    res++;
+        if (!(st==null)){
+
+
+                String[] dr = st.split("-"); // 31-08-2020  делим по дефису
+                Integer y;
+                Integer m;
+                Integer d;
+                LocalDate bday = null;
+                if (dr.length==3) {
+                    y = Integer.parseInt(dr[2]);
+                    m = Integer.parseInt(dr[1]);
+                    d = Integer.parseInt(dr[0]);
+                    bday = LocalDate.of(y, m, d);
                 }
-            }
+                LocalDate today = LocalDate.now(); ///of(2010, 5, 17); //
+                 //
+                int vozrast = calculateAge(bday, today);
+                res = res + vozrast;
+
         }
-        if (!posle.isEmpty()) {
-            for (ArrayList<String> st1 : posle) {
-                if (st1.get(16).equals("Не допущен")) {
-                    res++;
-                }
-            }
-        }
-        if (!line.isEmpty()) {
-            for (ArrayList<String> st2 : line) {
-                if (st2.get(16).equals("Не допущен")) {
-                    res++;
-                }
-            }
-        }
+
         return res;
     }
 
@@ -1960,6 +1980,18 @@ public class MainServlet extends HttpServlet {
         return fileTree;
     }
 
+    //возвращает возраст человека
+    public int calculateAge(
+            LocalDate birthDate,
+            LocalDate currentDate) {
+        // validate inputs ...
+        if ((birthDate != null) && (currentDate != null)) {
+            return Period.between(birthDate, currentDate).getYears();
+        } else {
+            return 0;
+        }
+    }
+
     private class DriverRiskData {
         String dataRojdeniya;
         String fio;
@@ -2049,6 +2081,8 @@ public class MainServlet extends HttpServlet {
             LocalDate bday = LocalDate.of(y, m, d); //
             return ChronoUnit.YEARS.between(bday, today);
         }
+
+
 
         public void setFIO (String s){ this.fio=s; }
 
