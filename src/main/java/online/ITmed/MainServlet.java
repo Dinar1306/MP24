@@ -17,10 +17,7 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.http.*;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -38,7 +35,11 @@ import static org.apache.poi.xwpf.usermodel.TableRowAlign.CENTER;
 
 public class MainServlet extends HttpServlet {
 
-    static final String REPORTS_DIR = "otchety";
+    //static final String REPORTS_DIR = "otchety";
+    static final String copyright = "\u00a9";
+    //static final String arrow = "\u21E8";
+    static final String arrow = "\u279C";
+    static String REPORTS_DIR, DEV_NAME, DEV_LINK;
     private static List<String> filesList = new ArrayList<>();
     private List<ReportsTable> spisokOtchetov_v2 = new ArrayList<>();     // список отчетов из списка файлов в папке отчетов
     private String organization = "";
@@ -81,15 +82,44 @@ public class MainServlet extends HttpServlet {
     }
 
     @Override
+    public void init() throws ServletException
+    {
+        // Загрузка настроек
+
+        Properties prop = new Properties();
+        try {
+            InputStream input = getServletContext().getResourceAsStream(File.separator + "resources"+ File.separator + "application.properties");
+            if (input == null) {
+                System.out.println("Sorry, unable to find application.properties");
+
+                //настройки по-умолчанию
+                REPORTS_DIR = "otchety";
+                DEV_NAME = "MDF-Lab";
+                DEV_LINK ="https://u.to/S4tUHA";
+                return;
+            }
+            prop.load(input);
+
+            //get the property's values
+            REPORTS_DIR = prop.getProperty("directory.reports");
+            DEV_NAME = prop.getProperty("dev.name");
+            DEV_LINK = prop.getProperty("url.link");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         RequestDispatcher requestDispatcher;
         //List<ArrayList<String>> spisokOtchetov = new ArrayList<>();     // список отчетов из списка файлов в папке отчетов
 
-
         // gets absolute path of the web application
         String applicationPath = request.getServletContext().getRealPath("");
+
         // constructs path of the directory to save uploaded file
         String uploadFilePath = applicationPath + File.separator + REPORTS_DIR;
 
@@ -914,7 +944,7 @@ public class MainServlet extends HttpServlet {
     }
 
     private String makeWordDocumentTable1XLS (TreeMap<Integer, FactTable> preparedList, String uploadFilePath) throws IOException, XmlException {
-        String copyright = "\u00a9";
+
         String res = File.separator+organization+" (фактич.) ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
 
@@ -928,7 +958,7 @@ public class MainServlet extends HttpServlet {
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
         // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано "+copyright+"MDF-lab средствами Java");
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
         // устанавливаем сформированный верхний
         // колонтитул в модель документа Word
         XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
@@ -1050,7 +1080,7 @@ public class MainServlet extends HttpServlet {
                                              TreeMap<String, int[]> medOsmotryByFIOXLS,
                                              String uploadFilePath) throws IOException, XmlException, InterruptedException {
         String type = "";
-        String copyright = "\u00a9";
+
         String res = File.separator+organization+" ("+vidOtcheta+") ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
         if (vidOtcheta.equals("точки осм.")) type = "Точка осмотра"; else type = "ФИО";
@@ -1064,7 +1094,7 @@ public class MainServlet extends HttpServlet {
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
         // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано "+copyright+"MDF-lab средствами Java");
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
         // устанавливаем сформированный верхний
         // колонтитул в модель документа Word
         XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
@@ -1186,7 +1216,7 @@ public class MainServlet extends HttpServlet {
     private String makeWordDocumentGruppaRiska(TreeMap<String, DriverRiskData> spisok,
                                                String uploadFilePath) throws IOException {
         TreeMap<Float, DriverRiskData> riskGroup = new TreeMap<>();
-        String copyright = "\u00a9";
+
         String res = File.separator + organization + " (гр.риска) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
@@ -1209,7 +1239,7 @@ public class MainServlet extends HttpServlet {
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
         // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
         // устанавливаем сформированный верхний
         // колонтитул в модель документа Word
         XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
@@ -1336,7 +1366,7 @@ public class MainServlet extends HttpServlet {
     private String makeWordDocumentStatNedopuskov(List<ArrayList<String>> pred,
                                           List<ArrayList<String>> posle,
                                           String uploadFilePath) throws IOException {
-        String copyright = "\u00a9";
+
         String res = File.separator + organization + " (недопуски) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
@@ -1350,7 +1380,7 @@ public class MainServlet extends HttpServlet {
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
         // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
         // устанавливаем сформированный верхний
         // колонтитул в модель документа Word
         XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
@@ -1491,7 +1521,7 @@ public class MainServlet extends HttpServlet {
                                           List<ArrayList<String>> posle,
                                           List<ArrayList<String>> line,
                                           String uploadFilePath) throws IOException, XmlException {
-        String copyright = "\u00a9";
+
         String res = File.separator + organization + " (реестр) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
@@ -1506,6 +1536,7 @@ public class MainServlet extends HttpServlet {
         float procentNedopuskov = nedopuskov/(float)vsegoOsm;
         int chisloVoditelei = countVod(pred, posle, line); //ОК
         float srednVozrast = summaVosrastov()/(float)chisloVoditelei;
+        allVozrasts.clear(); //очистка списка всех возрастов для следующего запуска процедуры (для обработки очередного меджурнала)
         int before = 0;
         int after = 0;
         int regular = 0;
@@ -1530,7 +1561,7 @@ public class MainServlet extends HttpServlet {
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
         // создаем верхний колонтитул Word файла
-        CTP ctpHeaderModel = createHeaderModel("Разработано " + copyright + "MDF-lab средствами Java");
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
         // устанавливаем сформированный верхний
         // колонтитул в модель документа Word
         XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
