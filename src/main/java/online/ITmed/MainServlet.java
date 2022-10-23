@@ -1,5 +1,6 @@
 package online.ITmed;
 
+import com.ibm.icu.text.Transliterator;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.poi.ss.usermodel.Cell;
 
@@ -52,6 +53,7 @@ public class MainServlet extends HttpServlet {
     private String[] radiobutton; //вид меджурнала
     //private int radio; //значение переключателя (1-2-3)
     private ArrayList<Integer> allVozrasts = new ArrayList<>(); //таблица возрастов всех водителей
+    private String CYRILLIC_TO_LATIN = "Russian-Latin/BGN";
 
 
     private class FactTable {
@@ -480,6 +482,13 @@ public class MainServlet extends HttpServlet {
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 request.setAttribute("message", "При обработке файла произошла ошибка.");
+                request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                requestDispatcher.forward(request, response);
+                return;
+            } catch (IOException e) {
+                e.printStackTrace();
+                request.setAttribute("message", "Слишком длинное название конечного файла.");
                 request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
                 RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                 requestDispatcher.forward(request, response);
@@ -1911,6 +1920,11 @@ public class MainServlet extends HttpServlet {
             int end = temp1.indexOf('(');
             if (end!=(-1)){
                 res = temp1.substring(8, end); //Название компании после слова "осмотра" и до первой скобки
+                if (res.length()>150){
+                    Transliterator toLatinTrans = Transliterator.getInstance(CYRILLIC_TO_LATIN);
+                    String result = toLatinTrans.transliterate(res);
+                    res = result;
+                }
             }
         }
         return res.trim();
