@@ -1920,7 +1920,7 @@ public class MainServlet extends HttpServlet {
             int end = temp1.indexOf('(');
             if (end!=(-1)){
                 res = temp1.substring(8, end); //Название компании после слова "осмотра" и до первой скобки
-                if (res.length()>150){
+                if (res.length()>100){
                     Transliterator toLatinTrans = Transliterator.getInstance(CYRILLIC_TO_LATIN);
                     String result = toLatinTrans.transliterate(res);
                     res = result;
