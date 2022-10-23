@@ -299,7 +299,7 @@ public class MainServlet extends HttpServlet {
             //выбираем вид меджурнала
             int radio = Integer.parseInt(radiobutton[0]); //значение переключателя (1-2-3)
             switch (radio){
-                case 1 : {
+                case 1 : { //меджурнал из distmed
                     try {
                         //разбираем первый лист файла medpoint24 на объектную модель
                         listPredreis = getListFromSheet(workBookXLSX, 0); //получаем лист предрейса
@@ -346,7 +346,7 @@ public class MainServlet extends HttpServlet {
 
                     break;
                 } /////////////case 1
-                case 2 : {
+                case 2 : {  //меджурнал старого образца
                     try {
                         //разбираем первый(единственный) лист файла medpoint24 на объектную модель
                         list = getListFromSheet(workBookXLSX, 0); //получаем лист всех видов осмотра
@@ -390,7 +390,7 @@ public class MainServlet extends HttpServlet {
 
                     break;
                 } /////////////case 2
-                case 3 : {
+                case 3 : { //меджурнал V3
                     break;
                 } /////////////case 3
             }
@@ -1228,7 +1228,7 @@ public class MainServlet extends HttpServlet {
         for (String s: spisok.keySet()) {
             spisok.get(s).setProcentNedopuskov(); //считаем % недопуски
             spisok.get(s).setFIO(s);    //устанавливаем фамилию - дубляж :/
-            if ((spisok.get(s).getOsmotrovVsego()>=3)&(spisok.get(s).getProcentNedopuskov()>=0.2)){
+            if ((spisok.get(s).getOsmotrovVsego()>=3)&(spisok.get(s).getProcentNedopuskov()>=0.25)){
                 riskGroup.put(spisok.get(s).getProcentNedopuskov(), spisok.get(s));
             }
         }
@@ -1262,19 +1262,23 @@ public class MainServlet extends HttpServlet {
         if (riskGroup.isEmpty()){
             run.addCarriageReturn();
             run.addCarriageReturn();
-            run.setText("Группы риска не сформированы, т.к. отсутствуют сотрудники, имеющие от 20% недопусков на основании не менее трёх осмотров");
+            run.setText("Группы риска не сформированы, т.к. отсутствуют сотрудники, имеющие от 25% недопусков на основании не менее трёх осмотров");
         } else {
             //подготовка форматирования ячеек
             XWPFParagraph paragraphTableCell = document.createParagraph();
+//            XWPFRun runCalibri = paragraphTableCell.createRun();
+//            runCalibri.setFontFamily("Calibri");
+//            runCalibri.setFontSize(9);
             paragraphTableCell.setAlignment(ParagraphAlignment.CENTER);
             paragraphTableCell.setSpacingAfter(0);
             paragraphTableCell.setSpacingBetween(1.00);
+            //paragraphTableCell.setStyle();
 
             XWPFParagraph paragraphTableCellL = document.createParagraph();
             paragraphTableCellL.setAlignment(ParagraphAlignment.LEFT);
             paragraphTableCellL.setSpacingAfter(0);
             paragraphTableCellL.setSpacingBetween(1.00);
-            //XWPFRun cellrun = paragraphTableCellL.createRun();
+            //paragraphTableCellL.createRun().setFontSize(9);
             //cellrun.setFontFamily("Calibri");
             //cellrun.setFontSize(9);
 
@@ -1307,15 +1311,15 @@ public class MainServlet extends HttpServlet {
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(5).setParagraph(paragraphTableCell);
-            tableRowOne.getCell(5).setText("Медицинские показатели: норма");
+            tableRowOne.getCell(5).setText("Мед. показатели: норма");
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(6).setParagraph(paragraphTableCell);
-            tableRowOne.getCell(6).setText("Медицинские показатели: вне нормы");
+            tableRowOne.getCell(6).setText("Мед. показатели: вне нормы");
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(7).setParagraph(paragraphTableCell);
-            tableRowOne.getCell(7).setText("% недопусков");
+            tableRowOne.getCell(7).setText("% не допусков");
 
             tableRowOne.addNewTableCell();
             tableRowOne.getCell(8).setParagraph(paragraphTableCell);
@@ -1329,7 +1333,7 @@ public class MainServlet extends HttpServlet {
             tableRowOne.getCell(10).setParagraph(paragraphTableCell);
             tableRowOne.getCell(10).setText("Ср. знач. ЧСС");
 
-            //добавляем остальные строки (сортировны по %недопуска)
+            //добавляем остальные строки (сортированы по %недопуска)
             int i = 0;
             for (Float fl:riskGroup.keySet()) {
                 XWPFTableRow tableRowNext = table.createRow();
@@ -1892,14 +1896,22 @@ public class MainServlet extends HttpServlet {
 
     //получение из первой строки Excel название компании
     private String getOrganizationName (ArrayList<String> firsRow){
-        String res = "";
+        String res = "orgName";
         String row = firsRow.get(0);
 
         //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
-        //собираем название организации (без начальных и без последних четырех элементов временного массива)
-        for (int i=5; i<tempArray.length-4; i++){
-            res = res+" "+tempArray[i];
+//        String[] tempArray = row.split(" ");
+//        //собираем название организации (без начальных и без последних четырех элементов временного массива)
+//        for (int i=5; i<tempArray.length-4; i++){
+//            res = res+" "+tempArray[i];
+//        } //устаревший метод, не применяется
+        int begin = row.lastIndexOf("осмотра");
+        if (begin!=(-1)){
+            String temp1 = row.substring(begin);
+            int end = temp1.indexOf('(');
+            if (end!=(-1)){
+                res = temp1.substring(8, end); //Название компании после слова "осмотра" и до первой скобки
+            }
         }
         return res.trim();
     }
@@ -1920,20 +1932,28 @@ public class MainServlet extends HttpServlet {
 
     //получение из первой строки Excel отчетного месяца
     private String getMonth_v3 (ArrayList<String> firsRow){
-        String res = "";
+        String res = "month";
         String row = firsRow.get(0);
         //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
+        //String[] tempArray = row.split(" ");
+        String tempStr = "";
         Locale rLocale = new Locale("ru"); //русская локаль
         SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy", rLocale);
         SimpleDateFormat newFormatter = new SimpleDateFormat("MMMM", rLocale);
 
+        int dot = row.indexOf('.');
+        if (dot!=(-1)){
+            tempStr = row.substring(dot-2, dot+8); //от первой точки два символа слева и 8 справа
+        }
+
         try {
-            Date date = formatter.parse(tempArray[tempArray.length-1]);
+            //Date date = formatter.parse(tempArray[tempArray.length-1]);
+            Date date = formatter.parse(tempStr);
             res = newFormatter.format(date);
 
         } catch (ParseException e) {
             e.printStackTrace();
+            return res.trim();
         }
         return res.trim();
     }
@@ -1960,13 +1980,21 @@ public class MainServlet extends HttpServlet {
 
     //получение из первой строки Excel года
     private String getGod_v3 (ArrayList<String> firsRow){
-        String res = "";
+        String res = "god";
         String row = firsRow.get(0);
-        //разбиваем строку по пробелам
-        String[] tempArray = row.split(" ");
-        String temp = tempArray[tempArray.length-1];
-        String[] tempos = temp.split("\\.");
-        res = tempos[2];
+
+        //разбиваем строку по пробелам - устаревший метод - не используется
+        //String[] tempArray = row.split(" ");
+        //String temp = tempArray[tempArray.length-1];
+        //String[] tempos = temp.split("\\.");
+        //res = tempos[2];
+        ////////////////////////////////////////////////////////////////////
+
+        int dot = row.indexOf('.');
+        if (dot!=(-1)){
+            res = row.substring(dot+4, dot+8); //от первой точки пляшем
+        }
+
         return res.trim();
     }
 
