@@ -55,7 +55,8 @@
                       <br>
                       <br>
                       <div class="w3-container w3-left-align">
-                            <jsp:include page="/resources/support.html" />
+                               <!--<jsp:include page="/resources/support.html" />-->
+                               <a  href="${requestScope.dev}" >Support is here</a> ;)
                       </div>
 
 

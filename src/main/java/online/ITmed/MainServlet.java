@@ -7,6 +7,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFName;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;   //для xlsx
 import org.apache.poi.xwpf.model.XWPFHeaderFooterPolicy;
 import org.apache.poi.xwpf.usermodel.*;
@@ -20,6 +21,7 @@ import javax.servlet.http.*;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.sql.Array;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -40,6 +42,12 @@ public class MainServlet extends HttpServlet {
     static final String copyright = "\u00a9";
     //static final String arrow = "\u21E8";
     static final String arrow = "\u279C";
+    static final Set<String> vidOsmotra = new HashSet<String>(){{
+        add("Предрейсовый (предсменный)");
+        add("Послерейсовый (послесменный)");
+        add("Линейный");
+        add("Профилактический");
+    }};
     static String REPORTS_DIR, DEV_NAME, DEV_LINK;
     private static List<String> filesList = new ArrayList<>();
     private List<ReportsTable> spisokOtchetov_v2 = new ArrayList<>();     // список отчетов из списка файлов в папке отчетов
@@ -142,6 +150,7 @@ public class MainServlet extends HttpServlet {
                     response.setCharacterEncoding("UTF-8");
                     request.setAttribute("message", "Отчеты отсутствуют.");
                     request.setAttribute("debug", "Папка с отчетами пуста.");
+                    request.setAttribute("dev", DEV_LINK);
                     requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                     requestDispatcher.forward(request, response);
                 }else{
@@ -153,6 +162,7 @@ public class MainServlet extends HttpServlet {
                     request.setCharacterEncoding ("UTF-8");
                     response.setCharacterEncoding("UTF-8");
                     request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
+                    request.setAttribute("dev", DEV_LINK);
                     requestDispatcher = request.getRequestDispatcher("list.jsp");
                     requestDispatcher.forward(request, response);
 
@@ -175,6 +185,7 @@ public class MainServlet extends HttpServlet {
                         } else {
                             request.setAttribute("message", "Отчет удалить не удалось((");
                             request.setAttribute("debug", "-");
+                            request.setAttribute("dev", DEV_LINK);
                             requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                             requestDispatcher.forward(request, response);
                             return;
@@ -185,6 +196,7 @@ public class MainServlet extends HttpServlet {
                 } else {
                     request.setAttribute("message", "Список очетов пуст((");
                     request.setAttribute("debug", "-");
+                    request.setAttribute("dev", DEV_LINK);
                     requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                     requestDispatcher.forward(request, response);
                     return;
@@ -193,11 +205,14 @@ public class MainServlet extends HttpServlet {
                 request.setCharacterEncoding ("UTF-8");
                 response.setCharacterEncoding("UTF-8");
                 request.setAttribute("spisokOtchetov_v2", spisokOtchetov_v2);
+                request.setAttribute("dev", DEV_LINK);
                 requestDispatcher = request.getRequestDispatcher("list.jsp");
                 requestDispatcher.forward(request, response);
                 //String[] delString = allRows.get(id);
                 break;
             default:
+                request.setAttribute("dev", DEV_LINK);
+                request.setAttribute("title", "MP24 Reports Service");
                 requestDispatcher = request.getRequestDispatcher("index.jsp");
                 requestDispatcher.forward(request, response);
                 break;
@@ -241,6 +256,7 @@ public class MainServlet extends HttpServlet {
         List<ArrayList<String>> list = new ArrayList<>();     // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listLine = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> listProf = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listPosleAndLine = new ArrayList<>(); // для объединения послерейса и линейного
         List<ArrayList<String>> listPredreis = new ArrayList<>();    // массив строк листа (каждая строка - массив строк) для списка предрейсовых осмотров
         TreeMap<Integer, Integer[]> medOsmotryByDatesPredReis = new TreeMap<Integer, Integer[]>(); //итоговые данные отсортированы по дате
@@ -288,7 +304,9 @@ public class MainServlet extends HttpServlet {
         //проверям загруженли файл меджурнала:
         //ничего
         if (size == 0){
+            request.setAttribute("title", "Error :((");
             request.setAttribute("message", "Загрузите файл меджурнала!");
+            request.setAttribute("dev", DEV_LINK);
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
             requestDispatcher.forward(request, response);
             return;
@@ -313,8 +331,10 @@ public class MainServlet extends HttpServlet {
                         god = getGod_v2(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
                     } catch (Exception e) {
                         e.printStackTrace();
+                        request.setAttribute("title", "Error!");
                         request.setAttribute("message", "При обработке файла произошла ошибка.");
                         request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                        request.setAttribute("dev", DEV_LINK);
                         RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                         requestDispatcher.forward(request, response);
                         return;
@@ -362,6 +382,7 @@ public class MainServlet extends HttpServlet {
                         e.printStackTrace();
                         request.setAttribute("message", "При обработке файла произошла ошибка.");
                         request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                        request.setAttribute("dev", DEV_LINK);
                         RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                         requestDispatcher.forward(request, response);
                         return;
@@ -392,7 +413,53 @@ public class MainServlet extends HttpServlet {
 
                     break;
                 } /////////////case 2
-                case 3 : { //меджурнал V3
+                case 3 : { //меджурнал V3 (Универсальный)
+                    //количество листов в книге
+                    int sheets = workBookXLSX.getNumberOfSheets();
+
+                    //проходим по всем листам
+                    for (int i = 0; i<sheets; i++){
+                        try {
+                            String sheetName = workBookXLSX.getSheetName(i);
+                            switch (sheetName) {
+                                case "Предрейсовый (предсменный)":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист предрейса
+                                    listPredreis = getPredreisList_V3(list); //
+                                    break;
+                                case "Послерейсовый (послесменный)":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listPosleReis = getPoslereisList(list); //
+                                    break;
+                                case "Линейный":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listLine = getLineList(list); //
+                                    break;
+                                case "Профилактический":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listProf = getProfList(list); //ИСПРАВИТЬ на новый геттер из list
+                                    break;
+                                default: // любое др. назв. (пропуск)
+                                    //tempStringArray.add("");
+                                    break;
+                            } //switch
+
+                        } catch (Exception e){
+                            request.setAttribute("message", "При обработке файла произошла ошибка.");
+                            request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                            request.setAttribute("dev", DEV_LINK);
+                            RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                            requestDispatcher.forward(request, response);
+                            return;
+                        }
+
+                    } // for i
+
+                    // достать оргу, год, месяц из не пустых списков
+                    ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
+                    organization = getOrganizationName(pervayaStroka); //достаем из первой строки (заголовка) название компании.
+                    period = getMonth_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
+                    god = getGod_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+
                     break;
                 } /////////////case 3
             }
@@ -432,6 +499,7 @@ public class MainServlet extends HttpServlet {
                 e.printStackTrace();
                 request.setAttribute("message", "При обработке файла произошла ошибка.");
                 request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                request.setAttribute("dev", DEV_LINK);
                 RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                 requestDispatcher.forward(request, response);
                 return;
@@ -463,7 +531,7 @@ public class MainServlet extends HttpServlet {
                 table4FileName = makeWordDocumentTable2XLS("точки осм.", dates, medOsmByHost, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table5FileName)
-                table5FileName = makeWordDocumentReestr(listPredreis, listPosleReis, listLine, uploadFilePath);
+                table5FileName = makeWordDocumentReestr(listPredreis, listPosleReis, listLine, listProf, uploadFilePath);
 
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
                 table6FileName = makeWordDocumentStatNedopuskov(listPredreis, listPosleAndLine, uploadFilePath);
@@ -475,6 +543,7 @@ public class MainServlet extends HttpServlet {
                 e.printStackTrace();
                 request.setAttribute("message", "При обработке файла произошла ошибка.");
                 request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                request.setAttribute("dev", DEV_LINK);
                 RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                 requestDispatcher.forward(request, response);
                 return;
@@ -483,6 +552,7 @@ public class MainServlet extends HttpServlet {
                 e.printStackTrace();
                 request.setAttribute("message", "При обработке файла произошла ошибка.");
                 request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                request.setAttribute("dev", DEV_LINK);
                 RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                 requestDispatcher.forward(request, response);
                 return;
@@ -490,6 +560,7 @@ public class MainServlet extends HttpServlet {
                 e.printStackTrace();
                 request.setAttribute("message", "Слишком длинное название конечного файла.");
                 request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                request.setAttribute("dev", DEV_LINK);
                 RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
                 requestDispatcher.forward(request, response);
                 return;
@@ -507,6 +578,7 @@ public class MainServlet extends HttpServlet {
             request.setAttribute("docx7Name", table7FileName);
             request.setAttribute("reportsDir", REPORTS_DIR);
             request.setAttribute("message", "Отчёты сформированы успешно!");
+            request.setAttribute("dev", DEV_LINK);
             RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
             requestDispatcher.forward(request, response);
             return;
@@ -531,24 +603,55 @@ public class MainServlet extends HttpServlet {
         return convertToOldFormat(res);
     }
 
-    private List<ArrayList<String>> getPoslereisList(List<ArrayList<String>> list) {
+    //получаем список предрейсовых медосмотров из Универсального отчета
+    private List<ArrayList<String>> getPredreisList_V3(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
         for (ArrayList strArr: list ) {
-            if ((strArr.get(7).equals("Послерейсовый осмотр"))|(strArr.get(7).equals("Послесменный осмотр"))){
+            if ((strArr.get(4).equals("Предрейсовый осмотр"))|(strArr.get(4).equals("Предсменный осмотр"))){
                 res.add(strArr);
             }
         }
-        return convertToOldFormat(res);
+        return convertToOldFormat_V3(res);
+    }
+
+    private List<ArrayList<String>> getPoslereisList(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        int nomerStolbtca = 7;
+        int r = Integer.parseInt(radiobutton[0]);
+        if (r == 3) {
+            nomerStolbtca = 4;
+        }
+        for (ArrayList strArr: list ) {
+            if ((strArr.get(nomerStolbtca).equals("Послерейсовый осмотр"))|(strArr.get(nomerStolbtca).equals("Послесменный осмотр"))){
+                res.add(strArr);
+            }
+        }     //if              //true                          //false
+        return  (r == 3) ? convertToOldFormat_V3(res) : convertToOldFormat(res);
     }
 
     private List<ArrayList<String>> getLineList(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
+        int nomerStolbtca = 7;
+        int r = Integer.parseInt(radiobutton[0]);
+        if (r == 3) {
+            nomerStolbtca = 4;
+        }
         for (ArrayList strArr: list ) {
-            if (strArr.get(7).equals("Линейный осмотр")){
+            if (strArr.get(nomerStolbtca).equals("Линейный осмотр")){
                 res.add(strArr);
             }
         }
-        return convertToOldFormat(res);
+        return  (r == 3) ? convertToOldFormat_V3(res) : convertToOldFormat(res);
+    }
+
+    private List<ArrayList<String>> getProfList(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        for (ArrayList strArr: list ) {
+            if (strArr.get(4).equals("Алкотестирование")){ //могут быть и др. виды проф.осмотров, например "Термометрия"
+                res.add(strArr);
+            }
+        }
+        return res;
     }
 
     private List<ArrayList<String>> convertToOldFormat(List<ArrayList<String>> list) {
@@ -588,6 +691,43 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
+    private List<ArrayList<String>> convertToOldFormat_V3(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        ArrayList<String> converted = new ArrayList<>();
+        String zakl = "";
+        for (ArrayList<String> strArr: list ) {
+            converted.add(0, strArr.get(0)); // № п/п
+            converted.add(1, convertDate_V3(strArr.get(2))); //Дата и время осмотра
+            converted.add(2, strArr.get(3)); // Длительность осмотра (на терминале)
+            converted.add(3, strArr.get(4)); // Тип осмотра
+            converted.add(4, strArr.get(5)); // Место осмотра
+            converted.add(5, strArr.get(6)); // Табельный номер
+            converted.add(6, strArr.get(7)); // ФИО работника
+            converted.add(7, strArr.get(8)); // Пол
+            converted.add(8, convertBD_V3(strArr.get(9))); // Дата рождения
+            converted.add(9, strArr.get(10));  // Жалобы
+            converted.add(10, strArr.get(11)); // Осмотр
+            converted.add(11, convertAD_V3(strArr.get(12),strArr.get(13))); // АД
+            converted.add(12, convertPuls_V3(strArr.get(14))); // ЧСС
+            converted.add(13, strArr.get(15)); // температура
+            converted.add(14, strArr.get(16)); // Проба на наличие алкоголя
+            //if (strArr.get(14).equals("Допущен")||strArr.get(14).equals("Прошёл")) zakl = "О"; else zakl = "Н";
+            converted.add(15, strArr.get(17)); // Заключение (Н или О)*
+            converted.add(16, strArr.get(18)); // Результат
+            converted.add(17, strArr.get(19)); // Комментарий
+            converted.add(18, strArr.get(20)); // ФИО медицинского работника
+            converted.add(19, strArr.get(21)); // Подпись медицинского работника
+            converted.add(20, strArr.get(22)); // Подпись работника
+
+            //конвертировано, добавляем (кроме закрытых ботом)
+            if (!converted.get(18).contains("Бот оповещения")){
+                res.add((ArrayList<String>)converted.clone());
+            }
+            converted.clear();
+        }
+        return res;
+    }
+
     //конвертирование даты с "29.07.2022 15:27:46" на "2022-07-29 15:27"
     private String convertDate (String s){
         String res = "";
@@ -596,7 +736,7 @@ public class MainServlet extends HttpServlet {
         //newFormatter.setTimeZone(TimeZone.getTimeZone("UTC+5")); //перевод на местное время
         try {
             Date date = formatter.parse(s);
-            ZonedDateTime d = ZonedDateTime.ofInstant(date.toInstant(),  ZoneId.systemDefault()); //не важно какой часовой пояс, т.к. ко времени из
+            ZonedDateTime d = ZonedDateTime.ofInstant(date.toInstant(),  ZoneId.systemDefault()); //не важно какой часовой пояс на хосте программы, т.к. ко времени из
             // журнала надо прибавить два часа (в журнале московское время)
             LocalDateTime ldt = d.toLocalDateTime();
             ldt = ldt.plusHours(2); //+2 часа к московскому времени из журнала
@@ -609,11 +749,66 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
-    //конвертирование даты рождения с "29.07.2022" на "2022-07-29"
+    private String convertDate_V3 (String st_dt){
+        String res = "";
+        String s = st_dt.substring(0,19); // обрезка " (+5)"
+        String timeZone = st_dt.substring(21,23);
+        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+        SimpleDateFormat newFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        //newFormatter.setTimeZone(TimeZone.getTimeZone("UTC+5")); //перевод на местное время
+        try {
+            Date date = formatter.parse(s);
+            ZonedDateTime d = ZonedDateTime.ofInstant(date.toInstant(),  ZoneId.systemDefault()); //не важно какой часовой пояс на хосте программы, т.к. ко времени из
+            // журнала надо прибавить два часа (в журнале московское время)
+            LocalDateTime ldt = d.toLocalDateTime();
+            if (timeZone.equals("+3")) ldt = ldt.plusHours(2); //+2 часа к московскому времени из журнала
+            res = newFormatter.format(Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant()));
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return res;
+    }
+
+    //конвертирование даты рождения с "2022-07-29" на "29-07-2022"
     private String convertBD (String s){
         String res = "";
         String[] tempArray = s.split("-");
         res=tempArray[2]+"-"+tempArray[1]+"-"+tempArray[0];
+        return res;
+    }
+
+    //конвертирование даты рождения с "29.07.2022" на "2022-07-29"
+    private String convertBD_V3 (String s){
+        String res = "";
+        String[] tempArray = s.split("\\.");
+        res=tempArray[0]+"-"+tempArray[1]+"-"+tempArray[2];
+        return res;
+    }
+
+    private String convertAD_V3 (String sad, String dad){
+        String res = "";
+        CharSequence dot = ".";
+        if (sad.contains(dot)){
+            String[] tempo = sad.split("\\.");
+            sad = tempo[0];
+        }
+        if (dad.contains(dot)){
+            String[] tempo = dad.split("\\.");
+            dad = tempo[0];
+        }
+        res = sad+"/"+dad;
+        return res;
+    }
+
+    private String convertPuls_V3 (String puls){
+        String res = "";
+        CharSequence dot = ".";
+        if (puls.contains(dot)){
+            String[] tempo = puls.split("\\.");
+            res = tempo[0];
+        } else res = puls;
         return res;
     }
 
@@ -1410,7 +1605,7 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(12);
         //run.setBold(true);
-        run.setText("Статистика причин недопусков");   run.addCarriageReturn();
+        run.setText("Статистика причин не допусков");   run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" "+god+" года");            //run.addCarriageReturn();
 
         //подготовка форматирования ячеек
@@ -1439,7 +1634,7 @@ public class MainServlet extends HttpServlet {
         XWPFRun runText = paragraphText.createRun();
         runText.setFontFamily("Times New Roman");
         runText.setFontSize(11);
-        runText.setText("Всего недопусков: "+itog[1]+" ("+String.format("%.1f", (itog[1]/(float)itog[0])*100)+"% от всех осмотров)");   runText.addCarriageReturn();
+        runText.setText("Всего не допусков: "+itog[1]+" ("+String.format("%.1f", (itog[1]/(float)itog[0])*100)+"% от всех осмотров)");   runText.addCarriageReturn();
         runText.setText("в т.ч. по мед.причинам: "+itog[2]+" ("+String.format("%.1f", (itog[2]/(float)itog[0])*100)+"% от всех осмотров)");   //run.addCarriageReturn();
 
         document.write(out); //сохраняем файл отчета в Word
@@ -1533,6 +1728,7 @@ public class MainServlet extends HttpServlet {
     private String makeWordDocumentReestr(List<ArrayList<String>> pred,
                                           List<ArrayList<String>> posle,
                                           List<ArrayList<String>> line,
+                                          List<ArrayList<String>> prof,
                                           String uploadFilePath) throws IOException, XmlException {
 
         String res = File.separator + organization + " (реестр) [" + period.toLowerCase() + "] "
@@ -1553,20 +1749,31 @@ public class MainServlet extends HttpServlet {
         int before = 0;
         int after = 0;
         int regular = 0;
+        int profControl = 0;
         if (!pred.isEmpty()) before=pred.size();
         if (!posle.isEmpty()) after=posle.size();
         if (!line.isEmpty()) regular=line.size();
+        if (!prof.isEmpty()) profControl=prof.size();
         //int tablesCounter = 0; //счетчик номеров таблиц
         int [] tablesCounter = new int [1]; //счетчик номеров таблиц
         String fraza1 = "Всего осмотров: "+vsegoOsm+", в т.ч. предрейсовых – "+before;
         String fraza2 = "Допусков, всего – "+dopuskov+", не допусков – "+nedopuskov+", что составило "+String.format("%.1f", procentNedopuskov*100)+"% от общего числа медосмотров.";
         String fraza3 = "Всего осмотрено сотрудников: "+chisloVoditelei+" чел., средний возраст по группе: "+String.format("%.1f",srednVozrast)+" лет.";
         String dobavka ="";
+        String fraza4 = ""; //фраза профконтроля
+
         if (after>0) dobavka = dobavka+", послерейсовых – "+after;
         if (regular>0) dobavka = dobavka+", линейных – "+regular;
         dobavka = dobavka+".";
         fraza1 = fraza1+dobavka;
         // посчитали и подготовили текст (три фразы в три строки)
+
+        //готовим фразу профконтроля
+        if (profControl != 0) {
+            int chisloSotr = countSotr(prof);
+            //  Профконтроль: алкотестирование - 12 шт. (5 чел.)
+            fraza4 = "Профконтроль: алкотестирование - "+profControl+" шт. ("+chisloSotr+" чел.)";
+        }
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -1603,11 +1810,17 @@ public class MainServlet extends HttpServlet {
         //runText.addCarriageReturn(); //возможно убрать пустую строку
         runText.setText(fraza1); runText.addCarriageReturn();
         runText.setText(fraza2); runText.addCarriageReturn();
-        runText.setText(fraza3); //runText.addCarriageReturn();
+        runText.setText(fraza3);
+        if (profControl != 0){
+            runText.addCarriageReturn();
+            runText.setText(fraza4);
+        }
+        //
         //  до табличных реестров выводим надпись вида
         //  Всего осмотров: 652, в т.ч. предрейсовых – 636, послерейсовых – 16.
         //  Допусков, всего – 547, не допусков – 105, что составило 16,1% от общего числа медосмотров.
         //  Всего осмотрено водителей: 209 чел.
+        //  Профконтроль: алкотестирование - 12 шт. (5 чел.)
 
         //подготовка форматирования ячеек
         XWPFParagraph paragraphTableCell = document.createParagraph();
@@ -1624,11 +1837,85 @@ public class MainServlet extends HttpServlet {
         if (!pred.isEmpty()) makeReestr(document, "предрейсовых", pred, tablesCounter, paragraphTableCell, paragraphTableCellL);
         if (!posle.isEmpty()) makeReestr(document, "послерейсовых", posle, tablesCounter, paragraphTableCell, paragraphTableCellL);
         if (!line.isEmpty()) makeReestr(document, "линейных", line, tablesCounter, paragraphTableCell, paragraphTableCellL);
+        if (!prof.isEmpty()) makeProfcontrolTable(document, "Профконтроль: алкотестирование", prof, tablesCounter, paragraphTableCell, paragraphTableCellL);
 
         document.write(out); //сохраняем файл отчета в Word
         out.close();
         document.close();
         return res;
+    }
+
+    private void makeProfcontrolTable (XWPFDocument wordDoc,
+                             String vid,
+                             List<ArrayList<String>> spisok,
+                             int[] num,
+                             XWPFParagraph par1,
+                             XWPFParagraph par2){
+        int size = spisok.size();
+        int n = num[0];
+        XWPFParagraph paragraphTableNum = wordDoc.createParagraph();
+        paragraphTableNum.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum.setSpacingAfter(0);
+        paragraphTableNum.setSpacingBetween(1.00);
+        XWPFRun runTableNum = paragraphTableNum.createRun();
+        runTableNum.setFontFamily("Times New Roman");
+        runTableNum.setFontSize(12);
+        runTableNum.addCarriageReturn();
+        runTableNum.setText("Табл. "+(++n)); //runTableNum.addCarriageReturn();
+        // Табл. 1
+        //обновляем значение номера таблицы для следующего реестра
+        num[0] = n;
+        XWPFParagraph paragraphTableName = wordDoc.createParagraph();
+        paragraphTableName.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName.setSpacingAfter(0);
+        paragraphTableName.setSpacingBetween(1.00);
+        XWPFRun runTableName = paragraphTableName.createRun();
+        runTableName.setFontFamily("Times New Roman");
+        runTableName.setFontSize(12);
+        runTableName.setText(vid); // "Профконтроль: алкотестирование"
+
+        //create table
+        XWPFTable table = wordDoc.createTable();
+        table.setCellMargins(10,50,10,50);
+        table.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+        //create first row
+        XWPFTableRow tableRowOne = table.getRow(0);
+
+        tableRowOne.getCell(0).setParagraph(par1);
+        tableRowOne.getCell(0).setText("№ п/п");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(1).setParagraph(par1);
+        tableRowOne.getCell(1).setText("Дата и время");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(2).setParagraph(par1);
+        tableRowOne.getCell(2).setText("ФИО сотрудника");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(3).setParagraph(par1);
+        tableRowOne.getCell(3).setText("Алкоголь");
+
+        tableRowOne.addNewTableCell();
+        tableRowOne.getCell(4).setParagraph(par1);
+        tableRowOne.getCell(4).setText("Результат");
+
+        //добавляем остальные строки (начальные даты месяца в конце списка)
+        for (int i = size; i>0; i--){
+            //String[] timestamp = spisok.get(i-1).get(1).split(" ");
+            XWPFTableRow tableRowNext = table.createRow();
+            tableRowNext.getCell(0).setParagraph(par1);
+            tableRowNext.getCell(0).setText(Integer.toString(size-i+1)); // № п/п
+            tableRowNext.getCell(1).setParagraph(par2);
+            tableRowNext.getCell(1).setText(spisok.get(i-1).get(2));   // Дата и время осмотра
+            tableRowNext.getCell(2).setParagraph(par2);
+            tableRowNext.getCell(2).setText(spisok.get(i-1).get(7));   // ФИО сотрудника
+            tableRowNext.getCell(3).setParagraph(par1);
+            tableRowNext.getCell(3).setText(spisok.get(i-1).get(11));   // Алкоголь
+            tableRowNext.getCell(4).setParagraph(par2);
+            tableRowNext.getCell(4).setText(spisok.get(i-1).get(12));   // Результат
+        }
     }
 
     private void makeReestr (XWPFDocument wordDoc,
@@ -1735,6 +2022,18 @@ public class MainServlet extends HttpServlet {
             }
         }
         res = Voditeli.size();
+        return res;
+    }
+
+    private int countSotr(List<ArrayList<String>> prof){
+        int res = 0;
+        Set<String> sotrudniki = new HashSet<>();
+        if (!prof.isEmpty()){
+            for (ArrayList<String> st0: prof) {
+                sotrudniki.add(st0.get(7)); //столбец с фамилией
+            }
+        }
+        res = sotrudniki.size();
         return res;
     }
 
@@ -1914,16 +2213,25 @@ public class MainServlet extends HttpServlet {
 //        for (int i=5; i<tempArray.length-4; i++){
 //            res = res+" "+tempArray[i];
 //        } //устаревший метод, не применяется
-        int begin = row.lastIndexOf("осмотра");
-        if (begin!=(-1)){
-            String temp1 = row.substring(begin);
-            int end = temp1.indexOf('(');
-            if (end!=(-1)){
-                res = temp1.substring(8, end); //Название компании после слова "осмотра" и до первой скобки
-                if (res.length()>100){
-                    Transliterator toLatinTrans = Transliterator.getInstance(CYRILLIC_TO_LATIN);
-                    String result = toLatinTrans.transliterate(res);
-                    res = result;
+
+        int r = Integer.parseInt(radiobutton[0]);
+        if (r == 3) { //если выбран универсальный отчет
+            int end = row.indexOf('(');
+            res = row.substring(0, end); //Название компании c самого начала и до первой скобки
+        }
+
+        if (r == 2) { //если журнал старого образца
+            int begin = row.lastIndexOf("осмотра");
+            if (begin!=(-1)){
+                String temp1 = row.substring(begin);
+                int end = temp1.indexOf('(');
+                if (end!=(-1)){
+                    res = temp1.substring(8, end); //Название компании после слова "осмотра" и до первой скобки
+                    if (res.length()>100){
+                        Transliterator toLatinTrans = Transliterator.getInstance(CYRILLIC_TO_LATIN);
+                        String result = toLatinTrans.transliterate(res);
+                        res = result;
+                    }
                 }
             }
         }

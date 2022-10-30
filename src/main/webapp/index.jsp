@@ -47,7 +47,7 @@
                             <p><input id="radio-2" type="radio" name="radio" value="2" checked>
                                <label for="radio-2">из V3 (старого образца)</label></p>
                             <p><input id="radio-3" type="radio" name="radio" value="3">
-                               <label for="radio-3">из V3</label></p>
+                               <label for="radio-3">из V3 (универсальный)</label></p>
                             </td>
                             </tr>
                             </tbody>
@@ -67,7 +67,8 @@
                       <br>
                       <br>
                       <div class="w3-container w3-left-align">
-                            <jsp:include page="/resources/support.html" />
+                               <!--<jsp:include page="/resources/support.html" />-->
+                               <a  href="${requestScope.dev}" >Support is here</a> ;)
                       </div>
       </div>
 </body>
