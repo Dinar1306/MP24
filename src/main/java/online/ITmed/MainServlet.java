@@ -454,6 +454,11 @@ public class MainServlet extends HttpServlet {
 
                     } // for i
 
+                    ////соединяем послерейс и линейные МО
+                    //Объединение двух списков в третий:
+                    listPosleAndLine.addAll(listPosleReis);
+                    listPosleAndLine.addAll(listLine);
+
                     // достать оргу, год, месяц из не пустых списков
                     ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
                     organization = getOrganizationName(pervayaStroka); //достаем из первой строки (заголовка) название компании.
@@ -884,7 +889,9 @@ public class MainServlet extends HttpServlet {
 
             //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
             switch (stroka.get(16)){ //было 15
-                case "Допущен" :
+                case "Допущен":
+                case "Прошел":
+                case "Прошёл":
                     //нашелся допуск -> увеличиваем значение в первой ячейке
                     if ((result.get(data)==null))       // если эта дата еще не внесена
                     {
@@ -903,17 +910,6 @@ public class MainServlet extends HttpServlet {
                     } else {
                         Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
                         v[1]++;                         // и увеличиваем
-                        result.put(data, v);            // перезаписываем счетчик
-                    }
-                    break;
-                case "Прошёл":
-                    //нашелся допуск -> увеличиваем значение в первой ячейке
-                    if ((result.get(data)==null))       // если эта дата еще не внесена
-                    {
-                        result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
-                    } else {
-                        Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
-                        v[0]++;                         // и увеличиваем
                         result.put(data, v);            // перезаписываем счетчик
                     }
                     break;
