@@ -44,10 +44,12 @@
                             <td>
                             <p><input id="radio-1" type="radio" name="radio" value="1">
                                <label for="radio-1">из distmed.com</label></p>
-                            <p><input id="radio-2" type="radio" name="radio" value="2" checked>
+                            <p><input id="radio-2" type="radio" name="radio" value="2">
                                <label for="radio-2">из V3 (старого образца)</label></p>
                             <p><input id="radio-3" type="radio" name="radio" value="3">
                                <label for="radio-3">из V3 (универсальный)</label></p>
+                            <p><input id="radio-4" type="radio" name="radio" value="4" checked>
+                               <label for="radio-4">из V3 (меджурнал)</label></p>
                             </td>
                             </tr>
                             </tbody>

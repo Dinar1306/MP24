@@ -41,7 +41,8 @@ public class MainServlet extends HttpServlet {
     //static final String REPORTS_DIR = "otchety";
     static final String copyright = "\u00a9";
     //static final String arrow = "\u21E8";
-    static final String arrow = "\u279C";
+    //static final String arrow = "\u279C";
+    static final String arrow = "\u1F310";
     static final Set<String> vidOsmotra = new HashSet<String>(){{
         add("Предрейсовый (предсменный)");
         add("Послерейсовый (послесменный)");
@@ -467,6 +468,60 @@ public class MainServlet extends HttpServlet {
 
                     break;
                 } /////////////case 3
+                case 4 : { //меджурнал V3 (Меджурнал XLS)
+                    //количество листов в книге
+                    int sheets = workBookXLSX.getNumberOfSheets();
+
+                    //проходим по всем листам
+                    for (int i = 0; i<sheets; i++){
+                        try {
+                            String sheetName = workBookXLSX.getSheetName(i);
+                            switch (sheetName) {
+                                case "Предрейсовый (предсменный)":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист предрейса
+                                    listPredreis = getPredreisList_V3(list); //
+                                    break;
+                                case "Послерейсовый (послесменный) вн":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listPosleReis = getPoslereisList(list); //
+                                    break;
+                                case "Линейный":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listLine = getLineList(list); //
+                                    break;
+                                case "Профилактический":
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listProf = getProfList(list); //ИСПРАВИТЬ на новый геттер из list
+                                    break;
+                                default: // любое др. назв. (пропуск)
+                                    //tempStringArray.add("");
+                                    break;
+                            } //switch
+
+                        } catch (Exception e){
+                            request.setAttribute("message", "При обработке файла произошла ошибка.");
+                            request.setAttribute("debug", ExceptionUtils.getStackTrace(e));
+                            request.setAttribute("dev", DEV_LINK);
+                            RequestDispatcher requestDispatcher = request.getRequestDispatcher("pusto.jsp");
+                            requestDispatcher.forward(request, response);
+                            return;
+                        }
+
+                    } // for i
+
+                    ////соединяем послерейс и линейные МО
+                    //Объединение двух списков в третий:
+                    listPosleAndLine.addAll(listPosleReis);
+                    listPosleAndLine.addAll(listLine);
+
+                    // достать оргу, год, месяц из не пустых списков
+                    ArrayList<String> pervayaStroka = list.get(0); //первая строка (заголовок)
+                    organization = getOrganizationName(pervayaStroka); //достаем из первой строки (заголовка) название компании.
+                    period = getMonth_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный месяц.
+                    god = getGod_v3(pervayaStroka); //достаем из первой строки (заголовка) отчетный год.
+
+                    break;
+                } /////////////case 4
             }
 
             //производим подсчёт по предрейсовым
@@ -611,42 +666,101 @@ public class MainServlet extends HttpServlet {
     //получаем список предрейсовых медосмотров из Универсального отчета
     private List<ArrayList<String>> getPredreisList_V3(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
+        List<ArrayList<String>> out = new ArrayList<>();
         for (ArrayList strArr: list ) {
-            if ((strArr.get(4).equals("Предрейсовый осмотр"))|(strArr.get(4).equals("Предсменный осмотр"))){
-                res.add(strArr);
-            }
+            //выбор вида отчета: универсальный V3 или меджурнал V3
+            switch (Integer.parseInt(radiobutton[0])) { //значение переключателя вида файла меджурнала
+                case 3: //универсальный
+                    if ((strArr.get(4).equals("Предрейсовый осмотр"))|(strArr.get(4).equals("Предсменный осмотр"))){
+                        res.add(strArr);
+                        out = convertToOldFormat_V3(res);
+                    }
+                    break;
+                case 4: //меджурнал
+                    if ((strArr.get(3).equals("Предрейсовый осмотр"))|(strArr.get(3).equals("Предсменный осмотр"))){
+                        res.add(strArr);
+                        out = convertToOldFormat_V3_M(res);
+                    }
+                    break;
+                default: // любое др. назв. (пропуск)
+                    //пусто
+                    break;
+            } //switch
+
         }
-        return convertToOldFormat_V3(res);
+        return out;
     }
 
     private List<ArrayList<String>> getPoslereisList(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
-        int nomerStolbtca = 7;
+        List<ArrayList<String>> out = new ArrayList<>();
+        int nomerStolbtca;
         int r = Integer.parseInt(radiobutton[0]);
-        if (r == 3) {
-            nomerStolbtca = 4;
+        switch (r){
+            case 3:
+                nomerStolbtca = 4;
+                break;
+            case 4:
+                nomerStolbtca = 3;
+                break;
+            default:
+                nomerStolbtca = 7;
         }
+
         for (ArrayList strArr: list ) {
             if ((strArr.get(nomerStolbtca).equals("Послерейсовый осмотр"))|(strArr.get(nomerStolbtca).equals("Послесменный осмотр"))){
                 res.add(strArr);
             }
-        }     //if              //true                          //false
-        return  (r == 3) ? convertToOldFormat_V3(res) : convertToOldFormat(res);
+        }
+
+        switch (r){
+            case 3:
+                out = convertToOldFormat_V3(res);
+                break;
+            case 4:
+                out = convertToOldFormat_V3_M(res);
+                break;
+            default:
+                out = convertToOldFormat_V3(res);
+        }
+
+        return  out;
     }
 
     private List<ArrayList<String>> getLineList(List<ArrayList<String>> list) {
         List<ArrayList<String>> res = new ArrayList<>();
-        int nomerStolbtca = 7;
+        List<ArrayList<String>> out = new ArrayList<>();
+        int nomerStolbtca;
         int r = Integer.parseInt(radiobutton[0]);
-        if (r == 3) {
-            nomerStolbtca = 4;
+        switch (r){
+            case 3:
+                nomerStolbtca = 4;
+                break;
+            case 4:
+                nomerStolbtca = 3;
+                break;
+            default:
+                nomerStolbtca = 7;
         }
+
         for (ArrayList strArr: list ) {
             if (strArr.get(nomerStolbtca).equals("Линейный осмотр")){
                 res.add(strArr);
             }
         }
-        return  (r == 3) ? convertToOldFormat_V3(res) : convertToOldFormat(res);
+
+        switch (r){
+            case 3:
+                out = convertToOldFormat_V3(res);
+                break;
+            case 4:
+                out = convertToOldFormat_V3_M(res);
+                break;
+            default:
+                out = convertToOldFormat_V3(res);
+        }
+
+        return  out;
     }
 
     private List<ArrayList<String>> getProfList(List<ArrayList<String>> list) {
@@ -726,6 +840,48 @@ public class MainServlet extends HttpServlet {
 
             //конвертировано, добавляем (кроме закрытых ботом)
             if (!converted.get(18).contains("Бот оповещения")){
+                res.add((ArrayList<String>)converted.clone());
+            }
+            converted.clear();
+        }
+        return res;
+    }
+
+
+    private List<ArrayList<String>> convertToOldFormat_V3_M(List<ArrayList<String>> list) {
+        List<ArrayList<String>> res = new ArrayList<>();
+        ArrayList<String> converted = new ArrayList<>();
+        String zakl = "";
+        for (ArrayList<String> strArr: list ) {
+            converted.add(0, strArr.get(0)); // № п/п
+            converted.add(1, strArr.get(2)); //Дата и время осмотра
+            converted.add(2, ""); // Длительность осмотра (на терминале)
+            converted.add(3, strArr.get(3)); // Тип осмотра
+            converted.add(4, strArr.get(4)); // Место осмотра
+            converted.add(5, strArr.get(5)); // Табельный номер
+            converted.add(6, strArr.get(6)); // ФИО работника
+            converted.add(7, strArr.get(7)); // Пол
+            converted.add(8, convertBD_V3(strArr.get(8))); // Дата рождения
+            converted.add(9, strArr.get(9));  // Жалобы
+            converted.add(10, strArr.get(10)); // Осмотр
+            converted.add(11, convertAD_V3(strArr.get(11),strArr.get(12))); // АД
+            converted.add(12, convertPuls_V3(strArr.get(13))); // ЧСС
+            converted.add(13, strArr.get(14)); // температура
+            converted.add(14, strArr.get(15)); // Проба на наличие алкоголя
+            //if (strArr.get(14).equals("Допущен")||strArr.get(14).equals("Прошёл")) zakl = "О"; else zakl = "Н";
+            converted.add(15, strArr.get(16)); // Заключение (Н или О)*
+            converted.add(16, strArr.get(17)); // Результат
+            converted.add(17, strArr.get(18)); // Комментарий
+            converted.add(18, strArr.get(19)); // ФИО медицинского работника
+            converted.add(19, strArr.get(20)); // Подпись медицинского работника
+            converted.add(20, strArr.get(21)); // Подпись работника
+
+            //конвертировано, добавляем (кроме закрытых ботом и незавершенных)
+            if (
+                   ! ( (converted.get(18).contains("Бот оповещения"))
+                            |
+                    (converted.get(17).contains("Незавершенный")))
+            ){
                 res.add((ArrayList<String>)converted.clone());
             }
             converted.clear();
@@ -873,51 +1029,117 @@ public class MainServlet extends HttpServlet {
     }
 
     private Integer getDate (String data){
+        int r = Integer.parseInt(radiobutton[0]);
         String[] s1 = data.split(" "); // 2020-08-31 18:06 делим по пробелу
-        String[] s2 = s1[0].split("-"); // 2020-08-31  забираем дату -> 31
-        Integer res = Integer.parseInt(s2[2]);
+        Integer res = 0;
+
+        switch (r){
+            case 4:
+                String[] s4 = s1[0].split("\\."); // 31.08.2020  делим дату месяц год
+                res = Integer.parseInt(s4[0]); //забираем дату
+                break;
+            default:
+                String[] s3 = s1[0].split("-"); // 2020-08-31  делим дату месяц год
+                res = Integer.parseInt(s3[2]); //забираем дату
+        }
+
         return res;
     }
 
     private TreeMap<Integer, Integer[]> prepare (List<ArrayList<String>> spisokVes){
         //заготовка для результата
         TreeMap<Integer, Integer[]> result = new TreeMap<Integer, Integer[]>();
+        int r = Integer.parseInt(radiobutton[0]);
 
-        // foreach
-        for (ArrayList<String> stroka : spisokVes) { //пробегаеся по строкам
-            Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
+        switch (r){
+            case 4:
+                String control = new String("НЕ допущен");
+                String control2 = new String("выявлены");
 
-            //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
-            switch (stroka.get(16)){ //было 15
-                case "Допущен":
-                case "Прошел":
-                case "Прошёл":
-                    //нашелся допуск -> увеличиваем значение в первой ячейке
-                    if ((result.get(data)==null))       // если эта дата еще не внесена
-                    {
-                        result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
-                    } else {
-                        Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
-                        v[0]++;                         // и увеличиваем
-                        result.put(data, v);            // перезаписываем счетчик
+                // foreach
+                for (ArrayList<String> stroka : spisokVes) { //пробегаемся по строкам
+                    Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
+
+                    //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
+
+
+                        if (stroka.get(16).toLowerCase().contains(control.toLowerCase()) | stroka.get(16).toLowerCase().contains(control2.toLowerCase())){ //если не допущен
+                            //нашелся Не допуск -> увеличиваем значение во второй ячейке
+                            if ((result.get(data)==null))       // если эта дата еще не внесена
+                            {
+                                result.put(data, new Integer[] {0, 1}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                            } else {
+                                Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                                v[1]++;                         // и увеличиваем
+                                result.put(data, v);            // перезаписываем счетчик
+                            }
+                        }
+                        else {
+                            //нашелся допуск -> увеличиваем значение в первой ячейке
+                            if ((result.get(data)==null))       // если эта дата еще не внесена
+                            {
+                                result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                            } else {
+                                Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                                v[0]++;                         // и увеличиваем
+                                result.put(data, v);            // перезаписываем счетчик
+                            }
+                        }
+
+
+                }
+                break;
+            default:
+                // foreach
+                for (ArrayList<String> stroka : spisokVes) { //пробегаеся по строкам
+                    Integer data = getDate(stroka.get(1)); // получаем дату из второй ячейки строки
+
+                    //определяем Допущен или Не допущен и увеличиваем счетчик в соответствующей ячейке (первой или второй)
+                    switch (stroka.get(16)){ //было 15
+                        case "Допущен":
+                        case "Прошел":
+                        case "Прошёл":
+                            //нашелся допуск -> увеличиваем значение в первой ячейке
+                            if (stroka.get(15).equals("О")){
+                                if ((result.get(data)==null))       // если эта дата еще не внесена
+                                {
+                                    result.put(data, new Integer[] {1, 0}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                                } else {
+                                    Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                                    v[0]++;                         // и увеличиваем
+                                    result.put(data, v);            // перезаписываем счетчик
+                                }
+                            } else { //нашелся Не допуск
+                                if ((result.get(data)==null))       // если эта дата еще не внесена
+                                {
+                                    result.put(data, new Integer[] {0, 1}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                                } else {
+                                    Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                                    v[1]++;                         // и увеличиваем
+                                    result.put(data, v);            // перезаписываем счетчик
+                                }
+                            }
+                            break;
+                        case "Не допущен":
+                        case "Не прошел":
+                        case "Не прошёл":
+                            //нашелся Не допуск -> увеличиваем значение во второй ячейке    daNet.equals("прошел") & zapis.get(15).equals("Н")
+                            if ((result.get(data)==null))       // если эта дата еще не внесена
+                            {
+                                result.put(data, new Integer[] {0, 1}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
+                            } else {
+                                Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
+                                v[1]++;                         // и увеличиваем
+                                result.put(data, v);            // перезаписываем счетчик
+                            }
+                            break;
+                        default:
+                            //nothing to do
+                            break;
                     }
-                    break;
-                case "Не допущен":
-                    //нашелся Не допуск -> увеличиваем значение во второй ячейке
-                    if ((result.get(data)==null))       // если эта дата еще не внесена
-                    {
-                        result.put(data, new Integer[] {0, 1}); //добавляем текущую строку (ключ) и счетчик (первое нахождение)
-                    } else {
-                        Integer[] v = result.get(data); //получаем значение счетчика допущенных (нужна будет первая ячейка)
-                        v[1]++;                         // и увеличиваем
-                        result.put(data, v);            // перезаписываем счетчик
-                    }
-                    break;
-                default:
-                    //nothing to do
-                    break;
-            }
+                }
         }
+
         return result;
     }
 
@@ -1093,7 +1315,7 @@ public class MainServlet extends HttpServlet {
                 }
 
                 // Незавершенный осмотр не учитывается
-                if (!vidNedopuska.contains("Незавершенный осмотр.")){
+                if (!vidNedopuska.contains("Незавершенный осмотр")){
                     temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
                     temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
                     temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
@@ -1119,7 +1341,7 @@ public class MainServlet extends HttpServlet {
                 }
 
                 // Незавершенный осмотр не учитывается
-                if (!vidNedopuska.contains("Незавершенный осмотр.")){
+                if (!vidNedopuska.contains("Незавершенный осмотр")){
                     temp.srednSAD.add(Integer.parseInt(bloodPressure[0]));
                     temp.srednDAD.add(Integer.parseInt(bloodPressure[1]));
                     temp.srednCHSS.add(Integer.parseInt(zapis.get(12).trim()));
@@ -1193,22 +1415,22 @@ public class MainServlet extends HttpServlet {
         tableRowOne.getCell(1).setParagraph(fillParagraph(document, "Число отчетного месяца"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(2).setParagraph(fillParagraph(document, "Общее количество мед.осмотров"));
+        tableRowOne.getCell(2).setParagraph(fillParagraph(document, "Общее кол-во мед.осмотров"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(3).setParagraph(fillParagraph(document, "Количество предрейсовых мед.осмотров"));
+        tableRowOne.getCell(3).setParagraph(fillParagraph(document, "Кол-во предр. мед.осмотров"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Допуск\""));
+        tableRowOne.getCell(4).setParagraph(fillParagraph(document, "Кол-во мед.осмотров \"Допуск\""));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Количество мед.осмотров \"Не допуск\""));
+        tableRowOne.getCell(5).setParagraph(fillParagraph(document, "Кол-во мед.осмотров \"Недопуск\""));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(6).setParagraph(fillParagraph(document, "Количество послерейсовых мед.осмотров"));
+        tableRowOne.getCell(6).setParagraph(fillParagraph(document, "Кол-во послер. мед.осмотров"));
 
         tableRowOne.addNewTableCell();
-        tableRowOne.getCell(7).setParagraph(fillParagraph(document, "% невыпуска"));
+        tableRowOne.getCell(7).setParagraph(fillParagraph(document, "% отстранения"));
 
         //table.getRow(0).getCell(0).addParagraph();
 
@@ -1601,7 +1823,8 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(12);
         //run.setBold(true);
-        run.setText("Статистика причин не допусков");   run.addCarriageReturn();
+        run.setText("Статистика причин отстранения");   run.addCarriageReturn();
+        run.setText(organization);                  run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" "+god+" года");            //run.addCarriageReturn();
 
         //подготовка форматирования ячеек
@@ -1644,25 +1867,61 @@ public class MainServlet extends HttpServlet {
         int countNedopuskiMO = 0; //счетчик для недопусков по мед.причинам
         int chisloNedopuskov = 0; //суммарное число недопусков
         String vidNedopuska; //вид недопуска
+        String daNet;
         TreeMap<String, Integer> vseNedopuskiStat = new TreeMap<String, Integer>(); //счетчик недопусков
         //здесь
         //  key - вид недопуска (String)
         //  value - кол-во недопусков по данному виду
         //проходимся по списку и считаем недопуски по каждому виду
         for (ArrayList<String> zapis: listVseMO) {
-            String daNet = zapis.get(16);
-            if (daNet.equals("Не допущен")){
-                vidNedopuska = zapis.get(17).trim();
-                if (vidNedopuska.contains("АД")|(vidNedopuska.contains("ЧСС"))) countNedopuskiMO++; //подсчет недопусков по мед.причинам
-                if(vseNedopuskiStat.containsKey(vidNedopuska)){ //такой недопуск есть
-                    int count = vseNedopuskiStat.get(vidNedopuska); // получаем число недопусков
-                    count++;                                    // увеличиваем счетчик
-                    vseNedopuskiStat.put(vidNedopuska, count);  // обновляем инфу
-                }
-                else {
-                    vseNedopuskiStat.put(vidNedopuska, 1);      // добавляем первый недопуск данного вида
-                }
+            switch (radiobutton[0]){
+                case "4":
+                    daNet = zapis.get(17);
+                    if (!daNet.equals("") ){ //если ячейка с комментарием недопуска не пуста, т.е. есть описание причины недопуска
+                        vidNedopuska = zapis.get(17).trim();
+                        if (vidNedopuska.contains("АД")|
+                                (vidNedopuska.contains("ЧСС"))|
+                                (vidNedopuska.contains("жалоб"))|
+                                (vidNedopuska.contains("паров"))|
+                                (vidNedopuska.contains("Температура"))|
+                                (vidNedopuska.contains("Цвет"))|
+                                (vidNedopuska.contains("Травма"))) countNedopuskiMO++; //подсчет недопусков по мед.причинам
+                        if(vseNedopuskiStat.containsKey(vidNedopuska)){ //такой недопуск есть
+                            int count = vseNedopuskiStat.get(vidNedopuska); // получаем число недопусков
+                            count++;                                    // увеличиваем счетчик
+                            vseNedopuskiStat.put(vidNedopuska, count);  // обновляем инфу
+                        }
+                        else {
+                            vseNedopuskiStat.put(vidNedopuska, 1);      // добавляем первый недопуск данного вида
+                        }
+                    }
+                    break;
+                default:
+                    daNet = zapis.get(16).toLowerCase();
+                    if (daNet.equals("не допущен") |
+                            daNet.equals("не прошел") |
+                            daNet.equals("не прошёл") |
+                            (daNet.equals("прошел") & zapis.get(15).equals("Н")) ){
+                        vidNedopuska = zapis.get(17).trim();
+                        if (vidNedopuska.contains("АД")|
+                                (vidNedopuska.contains("ЧСС"))|
+                                (vidNedopuska.contains("жалоб"))|
+                                (vidNedopuska.contains("паров"))|
+                                (vidNedopuska.contains("Температура"))|
+                                (vidNedopuska.contains("Цвет"))|
+                                (vidNedopuska.contains("Травма"))) countNedopuskiMO++; //подсчет недопусков по мед.причинам
+                        if(vseNedopuskiStat.containsKey(vidNedopuska)){ //такой недопуск есть
+                            int count = vseNedopuskiStat.get(vidNedopuska); // получаем число недопусков
+                            count++;                                    // увеличиваем счетчик
+                            vseNedopuskiStat.put(vidNedopuska, count);  // обновляем инфу
+                        }
+                        else {
+                            vseNedopuskiStat.put(vidNedopuska, 1);      // добавляем первый недопуск данного вида
+                        }
+                    }
+                    break;
             }
+
         }
 
         //считаем недопуски все
@@ -1736,7 +1995,15 @@ public class MainServlet extends HttpServlet {
 
         //считаем кол-во осмотров, допусков, недопусков и сколько водителей осмотрели + общий процент недопуска
         int vsegoOsm = countOsm(pred, posle, line);
-        int dopuskov = countDopusk(pred, posle, line);
+        int dopuskov = 0;
+        switch (radiobutton[0]){
+            case "4":
+                dopuskov = countDopusk_M(pred, posle, line);
+                break;
+            default:
+                dopuskov = countDopusk(pred, posle, line);
+                break;
+        }
         int nedopuskov = /*countNedopusk(pred, posle, line);*/ vsegoOsm-dopuskov;
         float procentNedopuskov = nedopuskov/(float)vsegoOsm;
         int chisloVoditelei = countVod(pred, posle, line); //ОК
@@ -2066,20 +2333,47 @@ public class MainServlet extends HttpServlet {
         }
         if (!posle.isEmpty()) {
             for (ArrayList<String> st1 : posle) {
-                if (st1.get(16).equals("Допущен") | st1.get(16).equals("Прошёл")) {
+                if (st1.get(16).equals("Допущен") | st1.get(16).equals("Прошёл") | st1.get(16).equals("Прошел")) {
                     res++;
                 }
             }
         }
         if (!line.isEmpty()) {
             for (ArrayList<String> st2 : line) {
-                if (st2.get(16).equals("Допущен") | st2.get(16).equals("Прошёл")) {
+                if (st2.get(16).equals("Допущен") | st2.get(16).equals("Прошёл") | st2.get(16).equals("Прошел")) {
                     res++;
                 }
             }
         }
         return res;
     }
+
+    private int countDopusk_M(List<ArrayList<String>> pred, List<ArrayList<String>> posle, List<ArrayList<String>> line) {
+        int res = 0;
+        if (!pred.isEmpty()){
+            for (ArrayList<String> st0: pred) {
+                if (st0.get(16).toLowerCase().contains("не допущен")){
+                    //do nothing
+                } else res++;
+            }
+        }
+        if (!posle.isEmpty()) {
+            for (ArrayList<String> st1 : posle) {
+                if (st1.get(16).toLowerCase().contains("выявлены")){
+                    //do nothing
+                } else res++;
+            }
+        }
+        if (!line.isEmpty()) {
+            for (ArrayList<String> st2 : line) {
+                if (st2.get(16).toLowerCase().contains("не допущен")) {
+                    //do nothing
+                } else res++;
+            }
+        }
+        return res;
+    }
+
 
     private int countDriversAge(String st) {
         int res = 0;
@@ -2211,11 +2505,15 @@ public class MainServlet extends HttpServlet {
 //        } //устаревший метод, не применяется
 
         int r = Integer.parseInt(radiobutton[0]);
+        if (r == 4) { //если выбран меджурнал
+            int end = row.indexOf(" с ");
+            int begin = row.lastIndexOf("организации");
+            res = row.substring(begin+11, end); //Название компании
+        }
         if (r == 3) { //если выбран универсальный отчет
             int end = row.indexOf('(');
             res = row.substring(0, end); //Название компании c самого начала и до первой скобки
         }
-
         if (r == 2) { //если журнал старого образца
             int begin = row.lastIndexOf("осмотра");
             if (begin!=(-1)){
@@ -2231,6 +2529,25 @@ public class MainServlet extends HttpServlet {
                 }
             }
         }
+
+        //меняем в названии кавычки вида  " на такие: « в начале и в конце »
+        StringBuilder strBuilder = new StringBuilder(res);
+        int marker = 0;
+        for (int i = 0; i < res.length(); i++) {
+            if (res.charAt(i)=='\"'){
+
+                if (marker==0) {
+                    strBuilder.replace(i, i+1, "«");
+                    marker++;
+                } else {
+                    strBuilder.replace(i, i+1, "»");
+                    i = res.length();
+                }
+
+            }
+        }
+        res = strBuilder.toString();
+
         return res.trim();
     }
 
@@ -2245,6 +2562,24 @@ public class MainServlet extends HttpServlet {
         for (int i=5; i<tempArray.length-6; i++){
             res = res+" "+tempArray[i];
         }
+
+        //меняем в названии кавычки вида  " на такие: « в начале и в конце »
+        StringBuilder strBuilder = new StringBuilder(res);
+        int marker = 0;
+        for (int i = 0; i < res.length(); i++) {
+            if (res.charAt(i)=='\"'){
+
+                if (marker==0) {
+                    strBuilder.replace(i, i+1, "«");
+                    marker++;
+                } else {
+                    strBuilder.replace(i, i+1, "»");
+                    i = res.length();
+                }
+
+            }
+        }
+        res = strBuilder.toString();
         return res.trim();
     }
 
