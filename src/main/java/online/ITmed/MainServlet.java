@@ -1,12 +1,10 @@
 package online.ITmed;
 
 import com.ibm.icu.text.Transliterator;
+import com.lowagie.text.PageSize;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.*;
 
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFName;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;   //для xlsx
 import org.apache.poi.xwpf.model.XWPFHeaderFooterPolicy;
@@ -14,6 +12,7 @@ import org.apache.poi.xwpf.usermodel.*;
 import org.apache.xmlbeans.XmlException;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 
+import javax.persistence.criteria.CriteriaBuilder;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
@@ -29,6 +28,7 @@ import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+import static org.apache.poi.ss.usermodel.PrintSetup.A4_PAPERSIZE;
 import static org.apache.poi.xwpf.usermodel.TableRowAlign.CENTER;
 
 @MultipartConfig //запрос может содержать несколько параметров
@@ -42,7 +42,7 @@ public class MainServlet extends HttpServlet {
     static final String copyright = "\u00a9";
     //static final String arrow = "\u21E8";
     //static final String arrow = "\u279C";
-    static final String arrow = "\u1F310";
+    static final String arrow = /*"\u1F310";*/ " ☆ ";
     static final Set<String> vidOsmotra = new HashSet<String>(){{
         add("Предрейсовый (предсменный)");
         add("Послерейсовый (послесменный)");
@@ -60,7 +60,7 @@ public class MainServlet extends HttpServlet {
     private String debug = "";
     private String message = "";
     private String[] radiobutton; //вид меджурнала
-    //private int radio; //значение переключателя (1-2-3)
+    private String[] GruppaRiskaSize; //значение выпадающего списка количества превышений АД (2-3-4 или 5)
     private ArrayList<Integer> allVozrasts = new ArrayList<>(); //таблица возрастов всех водителей
     private String CYRILLIC_TO_LATIN = "Russian-Latin/BGN";
 
@@ -96,7 +96,6 @@ public class MainServlet extends HttpServlet {
     public void init() throws ServletException
     {
         // Загрузка настроек
-
         Properties prop = new Properties();
         try {
             InputStream input = getServletContext().getResourceAsStream(File.separator + "resources"+ File.separator + "application.properties");
@@ -106,7 +105,8 @@ public class MainServlet extends HttpServlet {
                 //настройки по-умолчанию
                 REPORTS_DIR = "otchety";
                 DEV_NAME = "MDF-Lab";
-                DEV_LINK ="https://u.to/S4tUHA";
+                //DEV_LINK ="https://u.to/S4tUHA";
+                DEV_LINK ="";
                 return;
             }
             prop.load(input);
@@ -250,11 +250,13 @@ public class MainServlet extends HttpServlet {
         String table4FileName = "";                 // название файла Word с отчетной таблицей 4 по точкам (для скачивания)
         String table5FileName = "";                 // название файла Word с отчетной таблицей 5 реестр осмотров (для скачивания)
         String table6FileName = "";                 // название файла Word с отчетной таблицей 6 причины недопусков (для скачивания)
-        String table7FileName = "";                 // название файла Word с отчетной таблицей 7 группы риска (для скачивания)
+        String table7FileName = "";                 // название файла Word с отчетной таблицей 7 группы риска по недопускам АД (для скачивания)
+        String table8FileName = "";                 // название файла Word с отчетной таблицей 8 группы риска 140/90(для скачивания)
         //InputStream inputStream;                  // поток чтения для загружаемого файла
         XSSFWorkbook workBookXLSX;                  // объект книги эксель xlsx
 
-        List<ArrayList<String>> list = new ArrayList<>();     // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> list = new ArrayList<>();         // массив строк листа (каждая строка - массив строк) для medpont24
+        List<ArrayList<String>> listAllMO = new ArrayList<>();     // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listPosleReis = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listLine = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
         List<ArrayList<String>> listProf = new ArrayList<>(); // массив строк листа (каждая строка - массив строк) для medpont24
@@ -300,6 +302,9 @@ public class MainServlet extends HttpServlet {
 
         //получаем radiobutton (вид меджурнала: 1 - из дистмед, 2 - старый из V3, 3 - из V3)
         radiobutton = request.getParameterValues("radio");
+
+        //значение количества предвышений АД для подготовки группы риска табл.8
+        GruppaRiskaSize = request.getParameterValues("select");
 
 
         //проверям загруженли файл меджурнала:
@@ -479,18 +484,21 @@ public class MainServlet extends HttpServlet {
                             switch (sheetName) {
                                 case "Предрейсовый (предсменный)":
                                     list = getListFromSheet(workBookXLSX, i); //получаем лист предрейса
+                                    listAllMO.addAll(list.subList(2,list.size()-5));
                                     listPredreis = getPredreisList_V3(list); //
                                     break;
                                 case "Послерейсовый (послесменный) вн":
                                     list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    listAllMO.addAll(list.subList(2,list.size()-9));
                                     listPosleReis = getPoslereisList(list); //
                                     break;
                                 case "Линейный":
-                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист линейного
+                                    listAllMO.addAll(list.subList(2,list.size()-5));
                                     listLine = getLineList(list); //
                                     break;
                                 case "Профилактический":
-                                    list = getListFromSheet(workBookXLSX, i); //получаем лист послерейса
+                                    list = getListFromSheet(workBookXLSX, i); //получаем лист профил.осм.
                                     listProf = getProfList(list); //ИСПРАВИТЬ на новый геттер из list
                                     break;
                                 default: // любое др. назв. (пропуск)
@@ -599,6 +607,10 @@ public class MainServlet extends HttpServlet {
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table7FileName)
                 table7FileName = makeWordDocumentGruppaRiska(gruppyRiskaByFIO, uploadFilePath);
 
+                //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
+                if (Integer.parseInt(radiobutton[0])==4)
+                table8FileName = makeWordDocumentGruppaRiska140(listAllMO, uploadFilePath);
+
             } catch (XmlException e) {
                 e.printStackTrace();
                 request.setAttribute("message", "При обработке файла произошла ошибка.");
@@ -636,6 +648,14 @@ public class MainServlet extends HttpServlet {
             request.setAttribute("docx5Name", table5FileName);
             request.setAttribute("docx6Name", table6FileName);
             request.setAttribute("docx7Name", table7FileName);
+            if (Integer.parseInt(radiobutton[0])==4){
+                request.setAttribute("docx8Name", table8FileName);
+                request.setAttribute("marker", "yes");
+            }
+            else {
+                request.setAttribute("docx8Name", "");
+                request.setAttribute("marker", "no");
+            }
             request.setAttribute("reportsDir", REPORTS_DIR);
             request.setAttribute("message", "Отчёты сформированы успешно!");
             request.setAttribute("dev", DEV_LINK);
@@ -1639,14 +1659,14 @@ public class MainServlet extends HttpServlet {
                                                String uploadFilePath) throws IOException {
         TreeMap<Float, DriverRiskData> riskGroup = new TreeMap<>();
 
-        String res = File.separator + organization + " (гр.риска) [" + period.toLowerCase() + "] "
+        String res = File.separator + organization + " (гр.риска АД и пульс отстр.) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
         //For writing the Document in file system
         FileOutputStream out = new FileOutputStream(new File(uploadFilePath
                 + res));
 
-        //отбираем в группу риска сотрудников с тремя и более осмотрами + недопусками от 20% и сортируем по %недопуска
+        //отбираем в группу риска сотрудников с тремя и более осмотрами + недопусками от 25% и сортируем по %недопуска
         for (String s: spisok.keySet()) {
             spisok.get(s).setProcentNedopuskov(); //считаем % недопуски
             spisok.get(s).setFIO(s);    //устанавливаем фамилию - дубляж :/
@@ -1678,7 +1698,8 @@ public class MainServlet extends HttpServlet {
         run.setFontFamily("Times New Roman");
         run.setFontSize(12);
         //run.setBold(true);
-        run.setText("Группы риска по артериальному давлению и пульсу");   run.addCarriageReturn();
+        run.setText("Группы риска по артериальному давлению и пульсу в");   run.addCarriageReturn();
+        run.setText(organization);                  run.addCarriageReturn();
         run.setText("за "+period.toLowerCase()+" "+god+" года");
 
         if (riskGroup.isEmpty()){
@@ -1789,6 +1810,742 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
+    private String makeWordDocumentGruppaRiska140(List<ArrayList<String>> listAllMO,
+                                                  String uploadFilePath) throws IOException {
+        //название для файла отчета
+        String res = File.separator + organization + " (гр.риска от 55 лет и АД 140-90) [" + period.toLowerCase() + "] "
+                + makeFileNameByDateAndTimeCreated() + ".docx";
+
+        /*ФИО*//* [0]-возраст, [1]-ср.САД, [2]-ср.ДАД, [3]-%.недоп. */
+
+        //TreeMap<String, Integer> riskGroup140FIOiVozrast = new TreeMap<>(); //список работников (ФИО+возр)
+        TreeMap<String, String[]> riskGroup140FIOiDR = new TreeMap<>(); //список работников (ФИО+ДР+возр.)
+        TreeMap<String, Integer[]> riskGroup140FIOiDavlenie = new TreeMap<>();//список работников:
+        // (ФИО + давл [0]САД.ср.  [1]ДАД.ср. [2]САД.ср.выс.  [3]ДАД.ср.выс.)
+
+        TreeMap<String, int[]> riskGroup140FIOiChisloVysAD = new TreeMap<>();//список работников (ФИО + превыш.АД + всего.осм.)
+        ArrayList<Integer> tempSAD = new ArrayList<>();
+        ArrayList<Integer> tempDAD = new ArrayList<>();
+        ArrayList<Integer[]> tempADVysokoe = new ArrayList<>();
+
+
+        // переменные для ФИО и ДР
+        String FIO;
+        String DR;
+        String Vozrast;
+        Integer GRsize = Integer.valueOf(3); //сколько превышений АД учитывать (значение по умолчанию = 3)
+
+        try {
+            GRsize = Integer.valueOf(GruppaRiskaSize[0]);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException(e);
+        }
+        int sizeGR = GRsize; // для сравнения далее
+
+
+        /* Сборка всех фамилий в список по алфавиту */
+        for (ArrayList<String> st : listAllMO) {
+            FIO=st.get(6);
+            //добавляем фамилию в список с днем рождения
+            if ((riskGroup140FIOiDR.get(FIO)==null))       // если эта ФИО еще не внесена
+            {
+                DR=st.get(8);
+                Vozrast=String.valueOf(countDriversAgeV3M(DR));
+                riskGroup140FIOiDR.put(FIO, new String[]{DR, Vozrast}); //добавляем текущую ФИО (ключ) и ДР c возрастом
+            }
+        }
+        //на каждую ФИО находим среднее АД и вносим в соответствующий тримап
+        /*
+         * Get all keys using the keySet method
+         */
+        Set<String> keys = riskGroup140FIOiDR.keySet();
+        //iterate using forEach
+        keys.forEach( key -> { //action
+            int vsegoOsm = 0;
+            int highAD = 0;
+            for (ArrayList<String> st : listAllMO) {
+                if (st.get(6).equals(key)){ //Находим ФИО в списке осмотров - > добавляем давление в список (даже если есть значение у незавершенного)
+                    //String[] tempArray = st.get(11).trim().split("/"); //разбивка давления на САД и ДАД
+                    try
+                    {
+                        // именно здесь String преобразуется в int
+                        //Integer sad = Integer.valueOf(tempArray[0]);
+                        //Integer dad = Integer.valueOf(tempArray[1]);
+                        String[] tempArray = st.get(11).split("\\."); //значение САД 175.0
+                        Integer sad = Integer.valueOf(tempArray[0]);
+                        tempArray = st.get(12).split("\\.");          //значение ДАД 100.0
+                        Integer dad = Integer.valueOf(tempArray[0]);
+                        tempSAD.add(sad);
+                        tempDAD.add(dad);
+                        vsegoOsm++;
+                        if (sad>139 || dad>89){
+                            highAD++;   //увеличение счетчика высокого АД
+                            tempADVysokoe.add(new Integer[]{sad, dad}); //запись значений высокого АД
+
+                        }
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                       // System.out.println("NumberFormatException: " + nfe.getMessage());
+                    }
+                }
+            }
+            //считаем средние значения по всем АД
+            int highSADcounter = 0; // для подсчета превышений 139
+            int highDADcounter = 0; // для подсчета превышений 89
+            int sadRazmer = tempSAD.size();
+            int dadRazmer = tempDAD.size();
+            int highADRazmer = tempADVysokoe.size();
+            Integer summaSAD = 0; //для всех осмотров
+            Integer summaDAD = 0; //для всех осмотров
+            Integer summaSADhigh = 0; //для осмотров c превышениями
+            Integer summaDADhigh = 0; //для осмотров с превышениями
+            for(Integer davlenie : tempSAD) {
+                summaSAD = summaSAD+davlenie;
+                if (davlenie>139) highSADcounter++;
+            }
+            for(Integer davlenie : tempDAD) {
+                summaDAD = summaDAD+davlenie;
+                if (davlenie>89) highDADcounter++;
+            }
+
+            //проверки перед вычислением среднего АД
+            if (tempSAD.size()==0 | tempSAD == null) {
+                summaSAD = 1;
+            }
+            if (tempDAD.size()==0 | tempDAD == null) {
+                summaDAD = 1;
+            }
+            if (sadRazmer==0) {
+                sadRazmer = 1;
+            }
+            if (dadRazmer==0) {
+                dadRazmer = 1;
+            }
+            /*if (tempADVysokoe.size()==0 | tempADVysokoe == null) {
+                highADRazmer = 1;
+            }*/
+            //подсчет среднего давления превышений (у данной фамилии - key)
+            for (int i = 0; i < highADRazmer; i++) {
+                //System.out.println(key+"; i="+i+" tempADVysokoe.size="+tempADVysokoe.size()); //для ловли исключения Index 0 out-of-bounds for length 0
+                int VysSAD = tempADVysokoe.get(i)[0];
+                int VysDAD = tempADVysokoe.get(i)[1];
+                summaSADhigh = summaSADhigh + VysSAD;
+                summaDADhigh = summaDADhigh + VysDAD;
+            }
+
+            if (highADRazmer == 0) highADRazmer = 1; //чтобы не делить на ноль
+
+            //пофамильный список по превышениям давления и возрасту
+            Integer srSAD = Math.round(summaSAD/sadRazmer); // ср.САД всех осмотров (деления на ноль НЕТ)
+            Integer srDAD = Math.round(summaDAD/dadRazmer); // ср.ДАД всех осмотров (деления на ноль НЕТ)
+            Integer srSADVys = Math.round(summaSADhigh/highADRazmer); // ср.ДАД всех осмотров (деления на ноль НЕТ)
+            Integer srDADVys = Math.round(summaDADhigh/highADRazmer); // ср.ДАД всех осмотров (деления на ноль НЕТ)
+            Integer age = Integer.valueOf(riskGroup140FIOiDR.get(key)[1]);
+            //средние найдены, добавляем в тримап со средними (если превышений меньше 3-х, то вносим ноль)
+            if (highSADcounter>=sizeGR | highDADcounter>=sizeGR | age >= 55){ //// <---- ДОБАВИТЬ УСЛОВИЕ ДОБАВЛЕНИЯ ПО ВОЗРАСТУ 55 ЛЕТ И БОЛЕЕ !!!!!
+                riskGroup140FIOiDavlenie.put(key, new Integer[]{srSAD, srDAD, srSADVys, srDADVys});
+                tempSAD.clear();
+                tempDAD.clear();
+                tempADVysokoe.clear();
+            }
+            else {
+                riskGroup140FIOiDavlenie.put(key, new Integer[]{srSAD, srDAD, srSADVys, srDADVys});
+                tempSAD.clear();
+                tempDAD.clear();
+                tempADVysokoe.clear();
+            }
+
+            //пофамильный список со значением общего числа осмотров и превышений АД
+            riskGroup140FIOiChisloVysAD.put(key, new int[]{highAD, vsegoOsm}); //ФИО + превыш.АД + всего.осм.
+
+        }); //keys.forEach
+
+        //System.out.println("NumberFormatException: ");
+
+        //For writing the Document in file system
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
+                + res));
+
+        //Blank Document
+        XWPFDocument document = new XWPFDocument();
+
+        //установка альбомной ориентации --> https://questu.ru/questions/20188953/
+        CTDocument1 doc = document.getDocument();
+        CTBody body = doc.getBody();
+
+        if (!body.isSetSectPr()) {
+            body.addNewSectPr();
+        }
+        CTSectPr section = body.getSectPr();
+
+        if(!section.isSetPgSz()) {
+            section.addNewPgSz();
+        }
+        CTPageSz pageSize = section.getPgSz();
+
+        pageSize.setOrient(STPageOrientation.LANDSCAPE);
+        pageSize.setW(BigInteger.valueOf(16840)); //ширина А4
+        pageSize.setH(BigInteger.valueOf(11900)); //высота А4
+        //альбомная ориентация установлена
+
+        CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
+        // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
+        XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
+        // создаем верхний колонтитул Word файла
+        CTP ctpHeaderModel = createHeaderModel(copyright+" "+DEV_NAME+"   "+ arrow + "  "+ DEV_LINK);
+        // устанавливаем сформированный верхний
+        // колонтитул в модель документа Word
+        XWPFParagraph headerParagraph = new XWPFParagraph(ctpHeaderModel, document);
+        headerFooterPolicy.createHeader(
+                XWPFHeaderFooterPolicy.DEFAULT,
+                new XWPFParagraph[]{headerParagraph}
+        );
+
+        //подготовка форматирования ячеек
+        XWPFParagraph paragraphTableCell = document.createParagraph();
+        paragraphTableCell.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableCell.setSpacingAfter(0);
+        paragraphTableCell.setSpacingBetween(1.00);
+
+        XWPFParagraph paragraphTableCellL = document.createParagraph();
+        paragraphTableCellL.setAlignment(ParagraphAlignment.LEFT);
+        paragraphTableCellL.setSpacingAfter(0);
+        paragraphTableCellL.setSpacingBetween(1.00);
+        //форматирование ячеек подготовлено
+
+        //create Paragraph
+        XWPFParagraph paragraph = document.createParagraph();
+        XWPFRun run = paragraph.createRun();
+        //Set alignment paragraph to CENTER
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        run.setFontFamily("Times New Roman");
+        run.setFontSize(12);
+        //run.setBold(true);
+        run.setText("Детализация групп риска "+ organization);   run.addCarriageReturn();
+        run.setText("по возрасту (55 лет и старше) и артериальному давлению выше 139/89");   run.addCarriageReturn();
+        //run.setText(organization);                  run.addCarriageReturn();
+        run.setText("за "+period.toLowerCase()+" "+god+" года");
+
+        //добавляем три таблицы (сортированы по ФИО)
+        // сначала возр. от 55 лет + повыш.АД = Табл.1
+        // далее повыш. АД из оставшихся      = Табл.2
+        // далее возр. от 55 лет из оставшихся=Табл.3
+        // далее можно вывести оставшихся (здоровые)=Табл.4
+
+        //временный список для удаления (очистки начального большого списка)
+        Set<String> spisokFIO = new HashSet<>();
+        Set<String> spisokFIO2 = new HashSet<>();
+        Set<String> spisokFIO3 = new HashSet<>();
+        for (String fio:riskGroup140FIOiDR.keySet()) {
+            spisokFIO.add(fio);
+        }
+
+
+        int VsegoSotrudnikov = riskGroup140FIOiDR.size();
+        int ChisloSotrAD140iVozr55 = 0;
+        int ChisloSotrAD140 = 0;
+        int ChisloSotrVozr55 = 0;
+        int ChisloZdorovSotr = 0;
+
+        for (String fio:riskGroup140FIOiDR.keySet()) {
+            int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+            int chisloPovyshAD = riskGroup140FIOiChisloVysAD.get(fio)[0];
+            if (vozrast >= 55 & chisloPovyshAD >= Integer.valueOf(GruppaRiskaSize[0])) {
+                ++ChisloSotrAD140iVozr55;
+                spisokFIO.remove(fio);
+            }
+        }
+        spisokFIO2.addAll(spisokFIO);
+        for (String fio:spisokFIO) {
+            int chisloPovyshAD = riskGroup140FIOiChisloVysAD.get(fio)[0];
+            if (chisloPovyshAD >=Integer.valueOf(GruppaRiskaSize[0])){
+                ++ChisloSotrAD140;
+                spisokFIO2.remove(fio);
+            }
+        }
+        spisokFIO3.addAll(spisokFIO2);
+        for (String fio:spisokFIO2) {
+            int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+            if (vozrast >=55){
+                ++ChisloSotrVozr55;
+                spisokFIO3.remove(fio);
+            }
+        }
+        ChisloZdorovSotr = spisokFIO3.size();
+        spisokFIO.clear();
+
+        //сводный абзац до таблиц:
+        XWPFParagraph paragraphText = document.createParagraph();
+        paragraphText.setAlignment(ParagraphAlignment.LEFT);
+        XWPFRun runText = paragraphText.createRun();
+        runText.setFontFamily("Times New Roman");
+        runText.setFontSize(11);
+        runText.setText("Всего проведено измерений АД - "+VsegoSotrudnikov+" чел, в т.ч.:");   runText.addCarriageReturn();
+        runText.setText(ChisloSotrAD140iVozr55 + " чел. - возраст 55 лет и старше с превышениями нормальных показателей АД [высокий риск],");   runText.addCarriageReturn();
+        runText.setText(ChisloSotrAD140 + " чел. - возраст младше 55 лет и с превышениями нормальных показателей АД [умеренный риск],");   runText.addCarriageReturn();
+        runText.setText(ChisloSotrVozr55 + " чел. - возраст 55 лет и старше в границах нормальных показателей АД [низкий риск],");   runText.addCarriageReturn();
+        runText.setText(ChisloZdorovSotr + " чел. - возраст младше 55 лет и в границах нормальных показателей АД [риск отсутствует].");   runText.addCarriageReturn();
+        //runText.addCarriageReturn();
+        //runText.setText("* Письмо Минздрава РФ от 21.08.2003 N 2510/9468-03-32 \"О предрейсовых медицинских осмотрах водителей транспортных средств\"");   runText.addCarriageReturn();
+
+
+        //Табл.1
+        XWPFParagraph paragraphTableNum = document.createParagraph();
+        paragraphTableNum.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum.setSpacingAfter(0);
+        paragraphTableNum.setSpacingBetween(1.00);
+        XWPFRun runTableNum = paragraphTableNum.createRun();
+        runTableNum.setFontFamily("Times New Roman");
+        runTableNum.setFontSize(12);
+        runTableNum.addCarriageReturn();
+        runTableNum.setText("Табл. 1"); //runTableNum.addCarriageReturn();
+
+        XWPFParagraph paragraphTableName = document.createParagraph();
+        paragraphTableName.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName.setSpacingAfter(0);
+        paragraphTableName.setSpacingBetween(1.00);
+        XWPFRun runTableName = paragraphTableName.createRun();
+        runTableName.setFontFamily("Times New Roman");
+        runTableName.setFontSize(12);
+        runTableName.setText("Список сотрудников (55 лет и старше) с превышениями нормальных показателей АД не менее "+GruppaRiskaSize[0]+" раз."); //runTableName.addCarriageReturn();
+
+
+        //небольшая проверка
+        if (ChisloSotrAD140iVozr55==0){
+            runTableName.addCarriageReturn();
+            runTableName.addCarriageReturn();
+            runTableName.setText("Отсутствуют работники по заданным критериям.");
+        } else {
+
+            /////////////////////////////// тут новый код обработки списка медосмотров ///////////////////////////
+            // графы:                                                                                           //
+            //  №  | ФИО  | возр.  |  ср.давл. САД/ДАД |  Кол-во повыш. АД |  ср.давл. САД/ДАД  | % повыш.АД  | //
+            //     |      |        |  (из всех измер.) |     ( 4 из 11)    |   (из превышений)  |             | //
+            //                                                                                                  //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+            //create table #1
+            XWPFTable table = document.createTable();
+            table.setCellMargins(5, 25, 5, 25);
+            table.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+            //create first row
+            XWPFTableRow tableRowOne = table.getRow(0);
+
+            tableRowOne.getCell(0).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(0).setText("№ п/п");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(1).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(1).setText("ФИО сотрудника");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(2).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(2).setText("Дата рождения");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(3).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(3).setText("Возраст, полных лет");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(4).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(4).setText("Среднее АД (все измерения)");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(5).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(5).setText("Кол-во повышенных АД из всех измерений");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(6).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(6).setText("Среднее АД (измерения с превышением нормы)");
+
+            tableRowOne.addNewTableCell();
+            tableRowOne.getCell(7).setParagraph(paragraphTableCell);
+            tableRowOne.getCell(7).setText("% повышенных АД");
+
+
+            // вывод содержания таблицы 1
+            int i = 0;
+            for (String fio : riskGroup140FIOiDR.keySet()) {
+                int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+                int chisloPovyshAD = riskGroup140FIOiChisloVysAD.get(fio)[0];
+                if (vozrast >= 55 & chisloPovyshAD >= Integer.valueOf(GruppaRiskaSize[0])) {
+                    ++ChisloSotrAD140iVozr55;
+                    XWPFTableRow tableRowNext = table.createRow();
+                    tableRowNext.getCell(0).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(0).setText(Integer.toString(++i));         // № п/п
+                    tableRowNext.getCell(1).setParagraph(paragraphTableCellL);
+                    tableRowNext.getCell(1).setText(fio);                           //ФИО
+                    tableRowNext.getCell(2).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(2).setText(riskGroup140FIOiDR.get(fio)[0]); // Дата рождения
+                    tableRowNext.getCell(3).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(3).setText(Long.toString(vozrast));         // Возраст
+                    tableRowNext.getCell(4).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(4).setText(riskGroup140FIOiDavlenie.get(fio)[0] + "/" + riskGroup140FIOiDavlenie.get(fio)[1]);   // Среднее АД (все измер.)
+                    tableRowNext.getCell(5).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(5).setText(Integer.toString(riskGroup140FIOiChisloVysAD.get(fio)[0]) + " из " + riskGroup140FIOiChisloVysAD.get(fio)[1]);   // Кол-во повыш. АД из всех измер.
+                    tableRowNext.getCell(6).setParagraph(paragraphTableCell);
+                    tableRowNext.getCell(6).setText(riskGroup140FIOiDavlenie.get(fio)[2] + "/" + riskGroup140FIOiDavlenie.get(fio)[3]);   // Среднее АД (повыш. измер.)
+                    tableRowNext.getCell(7).setParagraph(paragraphTableCell);
+                    Float fl = (float) riskGroup140FIOiChisloVysAD.get(fio)[0] / (float) riskGroup140FIOiChisloVysAD.get(fio)[1];
+                    tableRowNext.getCell(7).setText(String.format("%.1f", fl * 100));    // % повыш. АД
+                    spisokFIO.add(fio);
+                }
+            }
+            //System.out.println("VsegoSotrudnikov: " + VsegoSotrudnikov + ", в т.ч. АД140 и 55лет: " + ChisloSotrAD140iVozr55);
+
+
+            //зачистка - удаление отработанных фамилий из всех списков
+            for (String s : spisokFIO) {
+                riskGroup140FIOiDR.remove(s);
+                riskGroup140FIOiDavlenie.remove(s);
+                riskGroup140FIOiChisloVysAD.remove(s);
+            }
+            spisokFIO.clear();
+            //System.out.println("riskGroup140FIOiDR размер остался = " + riskGroup140FIOiDR.size());
+        } //else
+
+        //Табл.2
+        XWPFParagraph paragraphTableNum2 = document.createParagraph();
+        paragraphTableNum2.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum2.setSpacingAfter(0);
+        paragraphTableNum2.setSpacingBetween(1.00);
+        XWPFRun runTableNum2 = paragraphTableNum2.createRun();
+        runTableNum2.setFontFamily("Times New Roman");
+        runTableNum2.setFontSize(12);
+        runTableNum2.addCarriageReturn();
+        runTableNum2.setText("Табл. 2");
+
+        XWPFParagraph paragraphTableName2 = document.createParagraph();
+        paragraphTableName2.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName2.setSpacingAfter(0);
+        paragraphTableName2.setSpacingBetween(1.00);
+        XWPFRun runTableName2 = paragraphTableName2.createRun();
+        runTableName2.setFontFamily("Times New Roman");
+        runTableName2.setFontSize(12);
+        runTableName2.setText("Список сотрудников (младше 55 лет) с превышениями нормальных показателей АД не менее "+GruppaRiskaSize[0]+" раз."); //runTableName.addCarriageReturn();
+
+        //небольшая проверка
+        if (ChisloSotrAD140==0){
+            runTableName2.addCarriageReturn();
+            runTableName2.addCarriageReturn();
+            runTableName2.setText("Отсутствуют работники по заданным критериям.");
+        } else {
+            //create table #2
+            XWPFTable table2 = document.createTable();
+            table2.setCellMargins(5,25,5,25);
+            table2.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+            //create first row
+            XWPFTableRow table2RowOne = table2.getRow(0);
+
+            table2RowOne.getCell(0).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(0).setText("№ п/п");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(1).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(1).setText("ФИО сотрудника");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(2).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(2).setText("Дата рождения");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(3).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(3).setText("Возраст, полных лет");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(4).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(4).setText("Среднее АД (все измерения)");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(5).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(5).setText("Кол-во повышенных АД из числа всех измерений");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(6).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(6).setText("Среднее АД (измерения с превышением нормы)");
+
+            table2RowOne.addNewTableCell();
+            table2RowOne.getCell(7).setParagraph(paragraphTableCell);
+            table2RowOne.getCell(7).setText("% повышенных АД");
+
+            //временный список для удаления (очистки начального большого списка)
+            spisokFIO = new HashSet<>();
+
+            // вывод содержания таблицы 2
+            int i = 0;
+            for (String fio:riskGroup140FIOiDR.keySet()) {
+                int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+                int chisloPovyshAD = riskGroup140FIOiChisloVysAD.get(fio)[0];
+                if (chisloPovyshAD >=Integer.valueOf(GruppaRiskaSize[0])){
+                    ++ChisloSotrAD140;
+                    XWPFTableRow tableRowNext2 = table2.createRow();
+                    tableRowNext2.getCell(0).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(0).setText(Integer.toString(++i));         // № п/п
+                    tableRowNext2.getCell(1).setParagraph(paragraphTableCellL);
+                    tableRowNext2.getCell(1).setText(fio);                           //ФИО
+                    tableRowNext2.getCell(2).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(2).setText(riskGroup140FIOiDR.get(fio)[0]); // Дата рождения
+                    tableRowNext2.getCell(3).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(3).setText(Long.toString(vozrast));         // Возраст
+                    tableRowNext2.getCell(4).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(4).setText(riskGroup140FIOiDavlenie.get(fio)[0]+"/"+ riskGroup140FIOiDavlenie.get(fio)[1]);   // Среднее АД (все измер.)
+                    tableRowNext2.getCell(5).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(5).setText(Integer.toString(riskGroup140FIOiChisloVysAD.get(fio)[0])+" из "+ riskGroup140FIOiChisloVysAD.get(fio)[1]);   // Кол-во повыш. АД из всех измер.
+                    tableRowNext2.getCell(6).setParagraph(paragraphTableCell);
+                    tableRowNext2.getCell(6).setText(riskGroup140FIOiDavlenie.get(fio)[2]+"/"+ riskGroup140FIOiDavlenie.get(fio)[3]);   // Среднее АД (повыш. измер.)
+                    tableRowNext2.getCell(7).setParagraph(paragraphTableCell);
+                    Float fl = (float)riskGroup140FIOiChisloVysAD.get(fio)[0] / (float)riskGroup140FIOiChisloVysAD.get(fio)[1];
+                    tableRowNext2.getCell(7).setText(String.format("%.1f", fl*100));    // % повыш. АД
+                    spisokFIO.add(fio);
+                }
+            }
+            i = 0; //обнуление счетчика номеров строк для нумерации сначала в следующей таблице
+
+            //зачистка - удаление отработанных фамилий из всех списков
+            for (String s:spisokFIO) {
+                riskGroup140FIOiDR.remove(s);
+                riskGroup140FIOiDavlenie.remove(s);
+                riskGroup140FIOiChisloVysAD.remove(s);
+            }
+            spisokFIO.clear();
+            //System.out.println("riskGroup140FIOiDR после 2й таблицы размер остался = "+riskGroup140FIOiDR.size());
+        }
+
+
+
+        //Табл.3
+        XWPFParagraph paragraphTableNum3 = document.createParagraph();
+        paragraphTableNum3.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum3.setSpacingAfter(0);
+        paragraphTableNum3.setSpacingBetween(1.00);
+        XWPFRun runTableNum3 = paragraphTableNum3.createRun();
+        runTableNum3.setFontFamily("Times New Roman");
+        runTableNum3.setFontSize(12);
+        runTableNum3.addCarriageReturn();
+        runTableNum3.setText("Табл. 3");
+
+        XWPFParagraph paragraphTableName3 = document.createParagraph();
+        paragraphTableName3.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName3.setSpacingAfter(0);
+        paragraphTableName3.setSpacingBetween(1.00);
+        XWPFRun runTableName3 = paragraphTableName3.createRun();
+        runTableName3.setFontFamily("Times New Roman");
+        runTableName3.setFontSize(12);
+        runTableName3.setText("Список сотрудников (55 лет и старше) с превышениями нормальных показателей АД менее "+GruppaRiskaSize[0]+" раз."); //runTableName.addCarriageReturn();
+
+        //небольшая проверка
+        if (ChisloSotrVozr55==0){
+            runTableName3.addCarriageReturn();
+            runTableName3.addCarriageReturn();
+            runTableName3.setText("Отсутствуют работники по заданным критериям.");
+        } else {
+            //create table #3
+            XWPFTable table3 = document.createTable();
+            table3.setCellMargins(5,25,5,25);
+            table3.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+            //create first row
+            XWPFTableRow table3RowOne = table3.getRow(0);
+
+            table3RowOne.getCell(0).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(0).setText("№ п/п");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(1).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(1).setText("ФИО сотрудника");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(2).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(2).setText("Дата рождения");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(3).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(3).setText("Возраст, полных лет");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(4).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(4).setText("Среднее АД (все измерения)");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(5).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(5).setText("Кол-во повышенных АД из числа всех измерений");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(6).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(6).setText("Среднее АД (измерения с превышением нормы)");
+
+            table3RowOne.addNewTableCell();
+            table3RowOne.getCell(7).setParagraph(paragraphTableCell);
+            table3RowOne.getCell(7).setText("% повышенных АД");
+
+            //временный список для удаления (очистки начального большого списка)
+            spisokFIO = new HashSet<>();
+
+            // вывод содержания таблицы 3
+            int i = 0;
+            for (String fio:riskGroup140FIOiDR.keySet()) {
+                int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+
+                if (vozrast >=55){
+                    ++ChisloSotrVozr55;
+                    XWPFTableRow tableRowNext3 = table3.createRow();
+                    tableRowNext3.getCell(0).setParagraph(paragraphTableCell);
+                    tableRowNext3.getCell(0).setText(Integer.toString(++i));         // № п/п
+                    tableRowNext3.getCell(1).setParagraph(paragraphTableCellL);
+                    tableRowNext3.getCell(1).setText(fio);                           //ФИО
+                    tableRowNext3.getCell(2).setParagraph(paragraphTableCell);
+                    tableRowNext3.getCell(2).setText(riskGroup140FIOiDR.get(fio)[0]); // Дата рождения
+                    tableRowNext3.getCell(3).setParagraph(paragraphTableCell);
+                    tableRowNext3.getCell(3).setText(Long.toString(vozrast));         // Возраст
+                    tableRowNext3.getCell(4).setParagraph(paragraphTableCell);
+                    tableRowNext3.getCell(4).setText(riskGroup140FIOiDavlenie.get(fio)[0]+"/"+ riskGroup140FIOiDavlenie.get(fio)[1]);   // Среднее АД (все измер.)
+                    tableRowNext3.getCell(5).setParagraph(paragraphTableCell);
+                    tableRowNext3.getCell(5).setText(Integer.toString(riskGroup140FIOiChisloVysAD.get(fio)[0])+" из "+ riskGroup140FIOiChisloVysAD.get(fio)[1]);   // Кол-во повыш. АД из всех измер.
+                    tableRowNext3.getCell(6).setParagraph(paragraphTableCell);
+                    String text = riskGroup140FIOiDavlenie.get(fio)[2]+"/"+ riskGroup140FIOiDavlenie.get(fio)[3];
+                    if (riskGroup140FIOiChisloVysAD.get(fio)[0]==0){
+                        text = "̶ / ̶";
+                    }
+                    tableRowNext3.getCell(6).setText(text);   // Среднее АД (повыш. измер.)
+                    tableRowNext3.getCell(7).setParagraph(paragraphTableCell);
+                    Float fl = (float)riskGroup140FIOiChisloVysAD.get(fio)[0] / (float)riskGroup140FIOiChisloVysAD.get(fio)[1];
+                    tableRowNext3.getCell(7).setText(String.format("%.1f", fl*100));    // % повыш. АД
+                    spisokFIO.add(fio);
+                }
+            }
+            i = 0; //обнуление счетчика номеров строк для нумерации сначала в следующей таблице
+
+            //зачистка - удаление отработанных фамилий из всех списков
+            for (String s:spisokFIO) {
+                riskGroup140FIOiDR.remove(s);
+                riskGroup140FIOiDavlenie.remove(s);
+                riskGroup140FIOiChisloVysAD.remove(s);
+            }
+            spisokFIO.clear();
+            //System.out.println("riskGroup140FIOiDR после 3й таблицы размер остался = "+riskGroup140FIOiDR.size());
+        } //else
+
+
+
+        //Табл.4
+        XWPFParagraph paragraphTableNum4 = document.createParagraph();
+        paragraphTableNum4.setAlignment(ParagraphAlignment.RIGHT);
+        paragraphTableNum4.setSpacingAfter(0);
+        paragraphTableNum4.setSpacingBetween(1.00);
+        XWPFRun runTableNum4 = paragraphTableNum4.createRun();
+        runTableNum4.setFontFamily("Times New Roman");
+        runTableNum4.setFontSize(12);
+        runTableNum4.addCarriageReturn();
+        runTableNum4.setText("Табл. 4");
+
+        XWPFParagraph paragraphTableName4 = document.createParagraph();
+        paragraphTableName4.setAlignment(ParagraphAlignment.CENTER);
+        paragraphTableName4.setSpacingAfter(0);
+        paragraphTableName4.setSpacingBetween(1.00);
+        XWPFRun runTableName4 = paragraphTableName4.createRun();
+        runTableName4.setFontFamily("Times New Roman");
+        runTableName4.setFontSize(12);
+        runTableName4.setText("Список сотрудников (младше 55 лет) с превышениями нормальных показателей АД менее "+GruppaRiskaSize[0]+" раз."); //runTableName.addCarriageReturn();
+
+        //небольшая проверка
+        if (ChisloZdorovSotr==0){
+            runTableName4.addCarriageReturn();
+            runTableName4.addCarriageReturn();
+            runTableName4.setText("Отсутствуют работники по заданным критериям.");
+        } else {
+            //create table #4
+            XWPFTable table4 = document.createTable();
+            table4.setCellMargins(5,25,5,25);
+            table4.setTableAlignment(TableRowAlign.valueOf("CENTER"));
+
+            //create first row
+            XWPFTableRow table4RowOne = table4.getRow(0);
+
+            table4RowOne.getCell(0).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(0).setText("№ п/п");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(1).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(1).setText("ФИО сотрудника");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(2).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(2).setText("Дата рождения");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(3).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(3).setText("Возраст, полных лет");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(4).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(4).setText("Среднее АД (все измерения)");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(5).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(5).setText("Кол-во повышенных АД из числа всех измерений");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(6).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(6).setText("Среднее АД (измерения с превышением нормы)");
+
+            table4RowOne.addNewTableCell();
+            table4RowOne.getCell(7).setParagraph(paragraphTableCell);
+            table4RowOne.getCell(7).setText("% повышенных АД");
+
+            //временный список для удаления (очистки начального большого списка)
+            spisokFIO = new HashSet<>();
+
+            // вывод содержания таблицы 4
+            int i = 0;
+            for (String fio:riskGroup140FIOiDR.keySet()) {
+                    int vozrast = Integer.valueOf(riskGroup140FIOiDR.get(fio)[1]);
+                    XWPFTableRow tableRowNext4 = table4.createRow();
+                    tableRowNext4.getCell(0).setParagraph(paragraphTableCell);
+                    tableRowNext4.getCell(0).setText(Integer.toString(++i));         // № п/п
+                    tableRowNext4.getCell(1).setParagraph(paragraphTableCellL);
+                    tableRowNext4.getCell(1).setText(fio);                           //ФИО
+                    tableRowNext4.getCell(2).setParagraph(paragraphTableCell);
+                    tableRowNext4.getCell(2).setText(riskGroup140FIOiDR.get(fio)[0]); // Дата рождения
+                    tableRowNext4.getCell(3).setParagraph(paragraphTableCell);
+                    tableRowNext4.getCell(3).setText(Long.toString(vozrast));         // Возраст
+                    tableRowNext4.getCell(4).setParagraph(paragraphTableCell);
+                    tableRowNext4.getCell(4).setText(riskGroup140FIOiDavlenie.get(fio)[0]+"/"+ riskGroup140FIOiDavlenie.get(fio)[1]);   // Среднее АД (все измер.)
+                    tableRowNext4.getCell(5).setParagraph(paragraphTableCell);
+                    tableRowNext4.getCell(5).setText(Integer.toString(riskGroup140FIOiChisloVysAD.get(fio)[0])+" из "+ riskGroup140FIOiChisloVysAD.get(fio)[1]);   // Кол-во повыш. АД из всех измер.
+                    tableRowNext4.getCell(6).setParagraph(paragraphTableCell);
+                    String text = riskGroup140FIOiDavlenie.get(fio)[2]+"/"+ riskGroup140FIOiDavlenie.get(fio)[3];
+                    if (riskGroup140FIOiChisloVysAD.get(fio)[0]==0){
+                        text = "̶ / ̶";
+                    }
+                    tableRowNext4.getCell(6).setText(text);   // Среднее АД (повыш. измер.)
+                    tableRowNext4.getCell(7).setParagraph(paragraphTableCell);
+                    Float fl = (float)riskGroup140FIOiChisloVysAD.get(fio)[0] / (float)riskGroup140FIOiChisloVysAD.get(fio)[1];
+                    tableRowNext4.getCell(7).setText(String.format("%.1f", fl*100));    // % повыш. АД
+                    spisokFIO.add(fio);
+
+            }
+            i = 0; //обнуление счетчика номеров строк для нумерации сначала в следующей таблице
+
+            //зачистка - удаление отработанных фамилий из всех списков
+            for (String s:spisokFIO) {
+                riskGroup140FIOiDR.remove(s);
+                riskGroup140FIOiDavlenie.remove(s);
+                riskGroup140FIOiChisloVysAD.remove(s);
+            }
+            spisokFIO.clear();
+            //System.out.println("riskGroup140FIOiDR после 4й таблицы размер остался = "+riskGroup140FIOiDR.size());
+        }
+
+
+        document.write(out); //сохраняем файл отчета в Word
+        out.close();
+        document.close();
+        return res;
+    }
+
     private String makeWordDocumentStatNedopuskov(List<ArrayList<String>> pred,
                                           List<ArrayList<String>> posle,
                                           String uploadFilePath) throws IOException {
@@ -1802,6 +2559,7 @@ public class MainServlet extends HttpServlet {
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
+
         CTSectPr ctSectPr = document.getDocument().getBody().addNewSectPr();
         // получаем экземпляр XWPFHeaderFooterPolicy для работы с колонтитулами
         XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(document, ctSectPr);
@@ -2188,7 +2946,12 @@ public class MainServlet extends HttpServlet {
                              XWPFParagraph par1,
                              XWPFParagraph par2){
         int size = spisok.size();
-        int n = num[0];
+        int n = num[0]; //номера таблиц
+        int radio = Integer.valueOf(radiobutton[0]);
+        String time = "Время осмотра";
+        if (radio==4){
+            time = "Время осмотра (мск.)";
+        }
         XWPFParagraph paragraphTableNum = wordDoc.createParagraph();
         paragraphTableNum.setAlignment(ParagraphAlignment.RIGHT);
         paragraphTableNum.setSpacingAfter(0);
@@ -2231,7 +2994,7 @@ public class MainServlet extends HttpServlet {
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(3).setParagraph(par1);
-        tableRowOne.getCell(3).setText("Время осмотра");
+        tableRowOne.getCell(3).setText(time);
 
         tableRowOne.addNewTableCell();
         tableRowOne.getCell(4).setParagraph(par1);
@@ -2401,6 +3164,34 @@ public class MainServlet extends HttpServlet {
         return res;
     }
 
+    private int countDriversAgeV3M(String st) {
+        int res = 0;
+        if (!(st==null)){
+
+
+            String[] dr = st.split("\\."); // 17.08.1952  делим по точке
+            Integer y;
+            Integer m;
+            Integer d;
+            LocalDate bday = null;
+            if (dr.length==3) {
+                y = Integer.parseInt(dr[2]);
+                m = Integer.parseInt(dr[1]);
+                d = Integer.parseInt(dr[0]);
+                bday = LocalDate.of(y, m, d);
+            }
+            LocalDate today = LocalDate.now(); ///of(2010, 5, 17); //
+            //
+            int vozrast = calculateAge(bday, today);
+            res = res + vozrast;
+
+        }
+
+        return res;
+    }
+
+
+
     //подсчет количества медосмотров у водителя
     int countDriversAllMO (int[] allDates){
         int res = 0;
@@ -2530,23 +3321,54 @@ public class MainServlet extends HttpServlet {
             }
         }
 
-        //меняем в названии кавычки вида  " на такие: « в начале и в конце »
-        StringBuilder strBuilder = new StringBuilder(res);
-        int marker = 0;
+        //считаем кол-во кавычки вида  "
+        int k = 0;
         for (int i = 0; i < res.length(); i++) {
             if (res.charAt(i)=='\"'){
-
-                if (marker==0) {
-                    strBuilder.replace(i, i+1, "«");
-                    marker++;
-                } else {
-                    strBuilder.replace(i, i+1, "»");
-                    i = res.length();
-                }
-
+                k++;
             }
         }
+
+        StringBuilder strBuilder = new StringBuilder(res);
+        //четное или не четное число кавычек
+        if (k % 2 == 0) {// четное число
+            //меняем в названии кавычки вида  " на такие: « в начале и в конце »
+            int marker = 0;
+            for (int i = 0; i < res.length(); i++) {
+                if (res.charAt(i)=='\"'){
+
+                    if (marker==0) {
+                        strBuilder.replace(i, i+1, "«");
+                        marker++;
+                    } else {
+                        strBuilder.replace(i, i+1, "»");
+                        marker--;
+                    }
+
+                }
+            }
+        } else { //нечетное, меняем на пробел
+            for (int i = 0; i < res.length(); i++) {
+                if (res.charAt(i)=='\"'){
+                    strBuilder.replace(i, i+1, " ");
+                }
+            }
+        }
+
+        //вырезка (Айтимед) из названия
         res = strBuilder.toString();
+        int pos = 0;
+        //pos = strBuilder.indexOf("(Айтимед)");
+        if (res.toLowerCase().contains("(Айтимед)".toLowerCase()) ) {
+            pos = res.toLowerCase().indexOf("(АЙТИМЕД)".toLowerCase());
+        }
+
+        if (!(pos==0)){
+            res = res.substring(0, pos);
+        }
+
+        //strBuilder.delete(pos+1, pos+9); // (Айтимед) - 9 символов
+        //res = strBuilder.toString();
 
         return res.trim();
     }

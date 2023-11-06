@@ -113,7 +113,7 @@
         </div>
         </div>
         <div class="divTableRow">
-        <div class="divTableCell" align="left">Отчёт №6.  Причины недопусков (статистика).</div>
+        <div class="divTableCell" align="left">Отчёт №6.  Причины отстранений (статистика недопусков).</div>
         <div class="divTableCell">
             <%
                                                   String name6 = (String)request.getAttribute("docx6Name");
@@ -132,7 +132,7 @@
         </div>
         </div>
         <div class="divTableRow">
-        <div class="divTableCell" align="left">Отчёт №7.  Группы риска (давление и пульс).</div>
+        <div class="divTableCell" align="left">Отчёт №7.  Группы риска (отстранения по давлению и пульсу).</div>
         <div class="divTableCell">
             <%
                                     String name7 = (String)request.getAttribute("docx7Name");
@@ -149,11 +149,35 @@
             %>
         </div>
         </div>
+        <div class="divTableRow">
+        <div class="divTableCell" align="left">Отчёт №8.  Группы риска (АД от 140/90 и возраст от 55 лет).</div>
+        <div class="divTableCell">
+                    <%
+                        String my_marker = (String)request.getAttribute("marker");
+                        if (my_marker.equals("yes")){
+                            String name8 = (String)request.getAttribute("docx8Name");
+                            String fName8 = "";
+                            try {
+                                String URLEncodedFileName = URLEncoder.encode(name8, "UTF-8");
+                                String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                                fName8 = ResultFileName;
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+                            out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName8.substring(3, fName8.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+                        }
+                        else {
+                            //out.println("<p>Не доступно<br>для данного файла<br>(загрузите «Меджурнал V3»)</p>");
+                            out.println("<a class=\"w3-button w3-ripple w3-teal\" alt=\"Не доступно для данного файла (загрузите «Меджурнал V3»)\" title=\"Не доступно для данного файла (загрузите «Меджурнал V3»)\" href=\"\">----------</a>");
+                        }
+                    %>
+        </div>
+        </div>
         </div>
         </div>
 
         <br><br>
-        <p align="center">==============================================</p>
+        <p align="center">☆ ====================  ʕ ᵔᴥᵔ ʔ  ==================== ☆</p>
         <a class="w3-button w3-ripple w3-teal" href="./" >Повторить</a>
     </center>
     <br>

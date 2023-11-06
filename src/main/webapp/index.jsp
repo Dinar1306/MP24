@@ -31,8 +31,8 @@
         <div class="w3-content w3-center">
           <form action="otchet" enctype="multipart/form-data" method="POST">
             <fieldset>
-                            <legend>=====&nbsp;Загрузите файл и отметьте вид журнала&nbsp;=====</legend>
-            				<p>Меджурнал из системы Medpoint24</p>
+                            <legend>=====&nbsp;Загрузите файл и отметьте вид отчёта&nbsp;=====</legend>
+            				<p>Меджурнал из системы MedPoint24</p>
                             <p><input name="file" type="file" id="file" accept=".xlsx" ></p>
             				<br>
             				<!--<p>Отчет, подготовленный вручную</p>
@@ -50,6 +50,18 @@
                                <label for="radio-3">из V3 (универсальный)</label></p>
                             <p><input id="radio-4" type="radio" name="radio" value="4" checked>
                                <label for="radio-4">из V3 (меджурнал)</label></p>
+                            <select name="select"  >
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option selected value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select> превышения АД 139/89 <br> учитывать в группе риска (табл. 8)
                             </td>
                             </tr>
                             </tbody>
