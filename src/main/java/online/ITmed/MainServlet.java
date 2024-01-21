@@ -61,6 +61,7 @@ public class MainServlet extends HttpServlet {
     private String message = "";
     private String[] radiobutton; //вид меджурнала
     private String[] GruppaRiskaSize; //значение выпадающего списка количества превышений АД (2-3-4 или 5)
+    private String[] unfinished; //учитывать или нет незавершенные осмотры
     private ArrayList<Integer> allVozrasts = new ArrayList<>(); //таблица возрастов всех водителей
     private String CYRILLIC_TO_LATIN = "Russian-Latin/BGN";
 
@@ -305,6 +306,9 @@ public class MainServlet extends HttpServlet {
 
         //значение количества предвышений АД для подготовки группы риска табл.8
         GruppaRiskaSize = request.getParameterValues("select");
+
+        //учитывать или нет незавершенные осмотры
+        unfinished = request.getParameterValues("unfinished");
 
 
         //проверям загруженли файл меджурнала:
@@ -896,14 +900,26 @@ public class MainServlet extends HttpServlet {
             converted.add(19, strArr.get(20)); // Подпись медицинского работника
             converted.add(20, strArr.get(21)); // Подпись работника
 
-            //конвертировано, добавляем (кроме закрытых ботом и незавершенных)
-            if (
-                   ! ( (converted.get(18).contains("Бот оповещения"))
-                            |
-                    (converted.get(17).contains("Незавершенный")))
-            ){
-                res.add((ArrayList<String>)converted.clone());
+            //конвертировано,
+            if (unfinished != null){  // отмечен чекбокс учета незавершенных
+                if (    //добавляем (кроме закрытых ботом)
+                        !  (converted.get(18).contains("Бот оповещения"))
+                ){
+                    res.add((ArrayList<String>)converted.clone());
+                }
+            } else {     // не отмечен чекбокс учета незавершенных
+                if (    //добавляем (кроме закрытых ботом и незавершенных)
+                        ! ( (converted.get(18).contains("Бот оповещения"))
+                                |
+                                (converted.get(17).contains("Незавершенный")))
+                ){
+                    res.add((ArrayList<String>)converted.clone());
+                }
             }
+
+
+
+
             converted.clear();
         }
         return res;

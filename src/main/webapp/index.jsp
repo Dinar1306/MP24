@@ -38,18 +38,24 @@
             				<!--<p>Отчет, подготовленный вручную</p>
                             <p><input name="file_p" type="file" id="file_p" accept=".xls"></p>-->
                             <p>Вид меджурнала:</p>
-                            <table style="margin-left: auto; margin-right: auto; font-size: small;">
+                            <table style="margin-left: auto; margin-right: auto; font-size: small;" cellpadding="3" border="1">
                             <tbody>
                             <tr>
                             <td>
                             <p><input id="radio-1" type="radio" name="radio" value="1">
-                               <label for="radio-1">из distmed.com</label></p>
+                               <label for="radio-1">из distmed.com [до 07/2022]</label></p>
                             <p><input id="radio-2" type="radio" name="radio" value="2">
-                               <label for="radio-2">из V3 (старого образца)</label></p>
+                               <label for="radio-2">из V3 (старого образца) [до 10/2022]</label></p>
                             <p><input id="radio-3" type="radio" name="radio" value="3">
-                               <label for="radio-3">из V3 (универсальный)</label></p>
+                               <label for="radio-3">из V3 (универсальный) [до 08/2023]</label></p>
+                            </td>
+                            </tr>
+                            <tr>
+                            <td>
                             <p><input id="radio-4" type="radio" name="radio" value="4" checked>
-                               <label for="radio-4">из V3 (меджурнал)</label></p>
+                               <label for="radio-4">из V3 (меджурнал)  [с 09/2023]</label></p>
+                            <p>НАСТРОЙКИ:<br>
+                            --------------------------------------------------------<br>
                             <select name="select"  >
                                 <option value="1">1</option>
                                 <option value="2">2</option>
@@ -61,7 +67,12 @@
                                 <option value="8">8</option>
                                 <option value="9">9</option>
                                 <option value="10">10</option>
-                            </select> превышения АД 139/89 <br> учитывать в группе риска (табл. 8)
+                            </select> превышения АД 139/89 для включения в <br> &laquo;Группу риска по АД&raquo; (табл. 8)<br>
+                            --------------------------------------------------------<br>
+                            <input type="checkbox" id="unfinished" name="unfinished" checked />
+                            <label for="unfinished" alt="Незавершённые осмотры, подписанные медработником" title="Незавершённые осмотры, подписанные медработником">учитывать также и незавершённые осмотры в<br>
+                            итоговых отчётах</label>
+                            </p>
                             </td>
                             </tr>
                             </tbody>
