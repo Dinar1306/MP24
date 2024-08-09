@@ -22,8 +22,8 @@
         <div class="divTable" style="width: 600px;" >
         <div class="divTableBody">
         <div class="divTableRow">
-        <div class="divTableCell" align="left">Отчёт №1. Фактические медосмотры (по датам).</div>
-        <div class="divTableCell">
+          <div class="divTableCell" align="left">Отчёт №1. Фактические медосмотры (по датам).</div>
+          <div class="divTableCell">
             <%
                 String name = (String)request.getAttribute("docxName");
                 String dir = (String)request.getAttribute("reportsDir");
@@ -37,8 +37,8 @@
                     }
                 out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName1.substring(3, fName1.length()) +"\" download=\"\">СКАЧАТЬ</a>");
             %>
-        </div>
-        </div>
+          </div>
+          </div>
         <div class="divTableRow">
         <div class="divTableCell" align="left">Отчёт №2. Детализация медосмотров (по ФИО водителей).</div>
         <div class="divTableCell">
@@ -116,17 +116,23 @@
         <div class="divTableCell" align="left">Отчёт №6.  Причины отстранений (статистика недопусков).</div>
         <div class="divTableCell">
             <%
-                                                  String name6 = (String)request.getAttribute("docx6Name");
-                                                  String fName6 = "";
-                                                  try {
-                                                        String URLEncodedFileName = URLEncoder.encode(name6, "UTF-8");
-                                                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
-                                                        fName6 = ResultFileName;
-                                                       } catch (UnsupportedEncodingException e) {
+                                                  String nedopuski = (String)request.getAttribute("nedopuski");
+                                                  if (nedopuski.equals("yes")){
+                                                      String name6 = (String)request.getAttribute("docx6Name");
+                                                      String fName6 = "";
+                                                      try {
+                                                         String URLEncodedFileName = URLEncoder.encode(name6, "UTF-8");
+                                                         String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                                                         fName6 = ResultFileName;
+                                                         } catch (UnsupportedEncodingException e) {
                                                                 e.printStackTrace();
-                                                       }
+                                                         }
+                                                         out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName6.substring(3, fName6.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+                                                  } else {
+                                                      out.println("-----");
+                                                  }
 
-                                    			  out.println("<a class=\"w3-button w3-ripple w3-teal\" href=\"."+ File.separator + dir + File.separator + fName6.substring(3, fName6.length()) +"\" download=\"\">СКАЧАТЬ</a>");
+
 
             %>
         </div>
@@ -185,7 +191,11 @@
     <br>
     <div class="w3-container w3-left-align">
              <!--<jsp:include page="/resources/support.html" />-->
-             <a  href="${requestScope.dev}" >Support is here</a> ;)
+             <a  href="${requestScope.dev}" >Get support</a>
+             <%
+                 //String dev = (String)request.getAttribute("dev");
+                 //out.println("<a class=\"w3-button w3-ripple w3-teal\" href="+ dev + ">СКАЧАТЬ</a>");
+             %>
         </div>
 </body>
 </html>

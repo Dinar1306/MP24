@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Welcome</title>
+</head>
+<body>
+<h1>Welcome to Thymeleaf</h1>
+<p th:text="${MainServlet.organization}">Placeholder message</p>
+<p th:utext="#{MainServlet.docx7Name}">Welcome to our grocery store!</p>
+<p>Today is: <span th:text="${today}">13 February 2011</span></p>
+</body>
+</html>

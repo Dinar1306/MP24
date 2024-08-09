@@ -6,9 +6,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>online.ITmed</groupId>
-    <artifactId>medpoint24</artifactId>
+    <artifactId>medreports</artifactId>
     <packaging>war</packaging>
     <version>1.0-SNAPSHOT</version>
+
     <name>Medpoint24 Journal Webapp</name>
     <url>http://maven.apache.org</url>
 
@@ -90,15 +91,23 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.ibm.icu</groupId>
-            <artifactId>icu4j</artifactId>
-            <version>61.1</version>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+            <version>3.0.15.RELEASE</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.freemarker/freemarker -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.23</version>
+        </dependency>
+
+
     </dependencies>
 
 
     <build>
-        <finalName>medpoint24</finalName>
+        <finalName>medreports</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -140,7 +149,19 @@
                     </configuration>
                 </execution>
             </executions>
-        </plugin>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.3.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

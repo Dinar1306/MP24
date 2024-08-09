@@ -55,8 +55,12 @@
                       <br>
                       <br>
                       <div class="w3-container w3-left-align">
-                               <!--<jsp:include page="/resources/support.html" />-->
-                               <a  href="${requestScope.dev}" >Support is here</a> ;)
+                               <!--<jsp:include page="/resources/support.html" />
+                               <a  href="${requestScope.dev}" >Support is here</a> ;)-->
+                               <%
+                                  String dev = (String)request.getAttribute("dev");
+                                  out.println("<a class=\"w3-button w3-ripple w3-teal\" target=\"_blank\" href="+ dev + ">Get support</a><br>");
+                               %>
                       </div>
 
 
