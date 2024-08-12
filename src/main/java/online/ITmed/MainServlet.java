@@ -22,6 +22,7 @@ import freemarker.template.Template;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -659,10 +660,17 @@ public class MainServlet extends HttpServlet {
 
                 if (facticheski != null){ //если чек бокс отмечен
                    table1FileName = makeWordDocumentTable1XLS(medOsmotryByDatesFacticheskie, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table1FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table1FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                    if (table1FileName != ""){
                        ArrayList repo = new ArrayList<>();
                        repo.add("Отчёт  \"Фактические медосмотры по датам\".");
-                       repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table1FileName+"\">СКАЧАТЬ</a>");
+                       repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+ REPORTS_DIR + File.separator + table1FileName+"\">СКАЧАТЬ</a>");
                        table_name_and_link.add(repo);
                    }
                 }
@@ -671,10 +679,17 @@ public class MainServlet extends HttpServlet {
                 if (rabotniki != null){  //если чек бокс отмечен
                    //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table2FileName)
                    table2FileName = makeWordDocumentTable2XLS("водит.", dates, medOsmotryByFIO, uploadFilePath);
+                   try {
+                        String URLEncodedFileName = URLEncoder.encode(table2FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table2FileName = ResultFileName;
+                   } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                   }
                    if (table2FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Детализация медосмотров по ФИО водителей\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table2FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table2FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                    }
                 }
@@ -682,10 +697,17 @@ public class MainServlet extends HttpServlet {
                 if (mediki != null){
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table3FileName)
                     table3FileName = makeWordDocumentTable2XLS("медраб.", dates, medRabotnikByFIO, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table3FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table3FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table3FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Детализация медосмотров по ФИО медработников\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table3FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table3FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -693,10 +715,17 @@ public class MainServlet extends HttpServlet {
                 if (tochki != null){
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table4FileName)
                     table4FileName = makeWordDocumentTable2XLS("точки осм.", dates, medOsmByHost, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table4FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table4FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table4FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Детализация медосмотров по точкам выпуска\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table4FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table4FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -704,10 +733,17 @@ public class MainServlet extends HttpServlet {
                 if (reestr != null){
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table5FileName)
                     table5FileName = makeWordDocumentReestr(listPredreis, listPosleReis, listLine, listProf, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table5FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table5FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table5FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Реестр медосмотров (предр., послер. и линейный)\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table5FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table5FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -715,10 +751,17 @@ public class MainServlet extends HttpServlet {
                 //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table6FileName)
                 if (nedopuski != null){
                     table6FileName = makeWordDocumentStatNedopuskov(listPredreis, listPosleAndLine, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table6FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table6FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table6FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Причины отстранений (статистика недопусков)\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table6FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table6FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -726,10 +769,17 @@ public class MainServlet extends HttpServlet {
                 if (gruppaRiska2 != null){
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table7FileName)
                     table7FileName = makeWordDocumentGruppaRiska(gruppyRiskaByFIO, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table7FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table7FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table7FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Группы риска №2 (короткий перерыв между сменами)\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table7FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table7FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -738,10 +788,17 @@ public class MainServlet extends HttpServlet {
                     //готовим отчет в ворде и сохраняем в папке отчетов, выдаем название файла для его скачивания (table8FileName)
                     //if (Integer.parseInt(radiobutton[0])==1)
                     table8FileName = makeWordDocumentGruppaRiska140(listAllMO, uploadFilePath);
+                    try {
+                        String URLEncodedFileName = URLEncoder.encode(table8FileName, "UTF-8");
+                        String ResultFileName = URLEncodedFileName.replace('+', ' ');
+                        table8FileName = ResultFileName;
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     if (table8FileName != ""){
                         ArrayList repo = new ArrayList<>();
                         repo.add("Отчёт \"Группы риска №1 (АД от 140/90, ЧСС от 100, возраст от 55)\".");
-                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR+table8FileName+"\">СКАЧАТЬ</a>");
+                        repo.add("<a class=\"w3-button w3-ripple w3-teal\" href=\".\\"+REPORTS_DIR + File.separator + table8FileName+"\">СКАЧАТЬ</a>");
                         table_name_and_link.add(repo);
                     }
                 }
@@ -800,7 +857,7 @@ public class MainServlet extends HttpServlet {
 
 // Конфигурация Freemarker
             Configuration cfg = new Configuration(Configuration.VERSION_2_3_23);
-            cfg.setDirectoryForTemplateLoading(new File(applicationPath+"/resources/templates"));
+            cfg.setDirectoryForTemplateLoading(new File(applicationPath+File.separator+"resources"+File.separator+"templates"));
 
             cfg.setDefaultEncoding("UTF-8");
 // модель данных         <- сюда закидывать только не нулевые отчеты для вывода в таблице отчетов
@@ -825,7 +882,7 @@ public class MainServlet extends HttpServlet {
             }
 
             // For the sake of example, also write output into a file:
-            Writer fileWriter = new FileWriter(new File(applicationPath+"/resources/templates/output.html"));
+            Writer fileWriter = new FileWriter(new File(applicationPath+File.separator +"resources"+File.separator+"templates"+File.separator+"output.html"));
             try {
                 temp.process(root, fileWriter);
             } catch (TemplateException e) {
@@ -837,7 +894,7 @@ public class MainServlet extends HttpServlet {
 
 
             //RequestDispatcher requestDispatcher = request.getRequestDispatcher("otchet.jsp");
-            RequestDispatcher requestDispatcher = request.getRequestDispatcher("resources\\templates\\output.html");
+            RequestDispatcher requestDispatcher = request.getRequestDispatcher("resources"+ File.separator +"templates"+ File.separator +"output.html");
             requestDispatcher.forward(request, response);
             out.flush();
             return;
@@ -1620,12 +1677,11 @@ public class MainServlet extends HttpServlet {
 
     private String makeWordDocumentTable1XLS (TreeMap<Integer, FactTable> preparedList, String uploadFilePath) throws IOException, XmlException {
 
-        String res = File.separator+organization+" (фактич.) ["+period.toLowerCase()+"] "
+        String res = /*File.separator+*/organization+" (фактич.) ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -1778,12 +1834,12 @@ public class MainServlet extends HttpServlet {
                                              String uploadFilePath) throws IOException, XmlException, InterruptedException {
         String type = "";
 
-        String res = File.separator+organization+" ("+vidOtcheta+") ["+period.toLowerCase()+"] "
+        String res = /*File.separator+*/organization+" ("+vidOtcheta+") ["+period.toLowerCase()+"] "
                 + makeFileNameByDateAndTimeCreated()+".docx";
         if (vidOtcheta.equals("точки осм.")) type = "Точка осмотра"; else type = "ФИО";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -1914,12 +1970,11 @@ public class MainServlet extends HttpServlet {
                                                String uploadFilePath) throws IOException {
         TreeMap<Float, DriverRiskData> riskGroup = new TreeMap<>();
 
-        String res = File.separator + organization + " (гр.риска АД и пульс отстр.) [" + period.toLowerCase() + "] "
+        String res = /*File.separator + */organization + " (гр.риска АД и пульс отстр.) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //отбираем в группу риска сотрудников с тремя и более осмотрами + недопусками от 25% и сортируем по %недопуска
         for (String s: spisok.keySet()) {
@@ -2090,7 +2145,7 @@ public class MainServlet extends HttpServlet {
     private String makeWordDocumentGruppaRiska140(List<ArrayList<String>> listAllMO,
                                                   String uploadFilePath) throws IOException {
         //название для файла отчета
-        String res = File.separator + organization + " (гр.риска от 55 лет и АД 140-90 и ЧСС 100) [" + period.toLowerCase() + "] "
+        String res = /*File.separator + */organization + " (гр.риска от 55 лет и АД 140-90 и ЧСС 100) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
         /*ФИО*//* [0]-возраст, [1]-ср.САД, [2]-ср.ДАД, [3]-%.недоп. */
@@ -2304,8 +2359,7 @@ public class MainServlet extends HttpServlet {
         int ChisloSotrCHSS100 = riskGroupCHSS4Print.size();
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -2922,12 +2976,11 @@ public class MainServlet extends HttpServlet {
                                           List<ArrayList<String>> posle,
                                           String uploadFilePath) throws IOException {
 
-        String res = File.separator + organization + " (недопуски) [" + period.toLowerCase() + "] "
+        String res = /*File.separator + */organization + " (недопуски) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //Blank Document
         XWPFDocument document = new XWPFDocument();
@@ -3138,12 +3191,11 @@ public class MainServlet extends HttpServlet {
                                           List<ArrayList<String>> prof,
                                           String uploadFilePath) throws IOException, XmlException {
 
-        String res = File.separator + organization + " (реестр) [" + period.toLowerCase() + "] "
+        String res = /*File.separator + */organization + " (реестр) [" + period.toLowerCase() + "] "
                 + makeFileNameByDateAndTimeCreated() + ".docx";
 
         //For writing the Document in file system
-        FileOutputStream out = new FileOutputStream(new File(uploadFilePath
-                + res));
+        FileOutputStream out = new FileOutputStream(new File(uploadFilePath + File.separator + res));
 
         //считаем кол-во осмотров, допусков, недопусков и сколько водителей осмотрели + общий процент недопуска
         int vsegoOsm = countOsm(pred, posle, line);
